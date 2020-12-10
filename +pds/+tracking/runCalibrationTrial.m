@@ -122,7 +122,7 @@ switch state
         
         if p.trial.(sn).on
             % Pulsating target dot
-            sz = p.trial.tracking.dotSz + (p.trial.tracking.dotSz/3 * sin(p.trial.ttime*10));
+            sz = p.trial.tracking.dotSz + (p.trial.tracking.dotSz/5 * sin(p.trial.ttime*10));
             
             % Show target on subject screen
             targPx = p.static.tracking.targets.xyPx(:,p.static.tracking.targets.i);

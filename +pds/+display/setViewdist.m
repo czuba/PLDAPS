@@ -72,8 +72,11 @@ if (isfield(p.trial,'grbl') || (isa(p.trial,'params') && isField(p.trial,'grbl')
     %      !!NOTE!!
     %      .grblPos should always be derived from .viewdist, not the other way around !!
     thisPos = p.trial.display.homeDist - p.trial.display.viewdist;
-    if p.trial.(sn).pos(1) ~= thisPos
-        % update needed
+    
+    % Trigger update if current position ~= requested position
+    if round(p.trial.(sn).pos(1),2) ~= round(thisPos,2)
+        % stepper motor positioning accurate to mm
+        % - anything smaller falls into rounding error of motor step size
         doUpdate = 1;
     end
     p.trial.display.grblPos = thisPos;
