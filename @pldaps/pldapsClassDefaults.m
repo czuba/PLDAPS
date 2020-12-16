@@ -212,6 +212,7 @@ function s = pldapsClassDefaults(s)
  s. tracking. gridSz            = [20, 16];  % [x,y] size of target grid, in deg
  s. tracking. gridScale         = 1; % scale of calbiration targets relative to display dimensions
  s. tracking. tform             = []; % geometric transform object (index if binocular) See:  pds.tracking.runCalibrationTrial>>updateCalibTransform
+ s. tracking. useRawData        = true; % apply useRawData flag to source by default; allow to override (only rec. for debugging/testing)
  
 
 end

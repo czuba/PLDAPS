@@ -19,10 +19,10 @@ end
 src = p.trial.tracking.source;
 
 % ALWAYS use raw data for .tracking calibration
-switch src
-    case 'eyelink'
-        p.trial.eyelink.useRawData = true;
-        % DEBUG: may need to override this when using mouse simulation mode (eyelink 1000)
+%   - .tracking.useRawData=true; set in pldapsClassDefaults
+if isfield(p.trial.(src), 'useRawData')
+    p.trial.src.useRawData = p.trial.tracking.useRawData;
+    % DEBUG: may need to override this when using mouse simulation mode (eyelink 1000)
 end
 
 fprintLineBreak
