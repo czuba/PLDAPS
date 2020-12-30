@@ -537,14 +537,20 @@ methods
     
     %% updateInfoFig
     function updateInfoFig(cm, p)
-     % Update Info Fig    (This is still SUPER rudimentary, but better than nothing. --TBC)        
+     % Update Info Fig    (This is still SUPER rudimentary, but better than nothing. --TBC)
+     if isempty(cm.ifi)
+         cm.ifi = p.static.display.ifi;
+     end
         if ishandle(cm.H.infoFig)
             pctRemain = mean(cm.condReps(:)==cm.iPass)*100; %(1-(numel(cm.order)-cm.i) / numel(cm.conditions)) *100;
             
             % trial count text
             cm.H.infoFig.Children(1).Children(end).String = sprintf('Trial:  %5d\nPass:  %5d  (%02.1f%%)', p.trial.pldaps.iTrial, cm.iPass, pctRemain);  % cm.i/numel(cm.order)*100);
+            % dropped frame count
+            cm.H.infoFig.Children(1).Children(end-1).String = dropCountString;
+
             % fixation text
-            cm.H.infoFig.Children(1).Children(end-1).String = sprintf('Fix Pos:    %s\nFix Lim:    %s',...
+            cm.H.infoFig.Children(1).Children(end-2).String = sprintf('Fix Pos:    %s\nFix Lim:    %s',...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixPos),...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixLim));
             refreshdata(cm.H.infoFig);%.Children(1));
@@ -560,11 +566,15 @@ methods
             box off;
             set(ha, 'color',.5*[1 1 1], 'fontsize',10);
             axis(ha, [0 1 0 1]); axis off
-            fsz = 12;
+            fsz = 10;
             % Basic trial info text
+            % handle ends up in:  cm.H.infoFig.Children(1).Children(end)
             ht(1) = text(ha, 0, 0.8, sprintf('Trial:  %5d\nPass:  %5d', p.trial.pldaps.iTrial, cm.iPass));
+            % handle ends up in:  cm.H.infoFig.Children(1).Children(end-1)
+            ht(2) = text(ha, 0, 0.2, dropCountString);
             try
-                ht(2) = text(ha, 0, 0.5, sprintf('Fix Pos:    %s\nFix Lim:    %s',...
+                % handle ends up in:  cm.H.infoFig.Children(1).Children(end-2)
+                ht(3) = text(ha, 0, 0.5, sprintf('Fix Pos:    %s\nFix Lim:    %s',...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixPos),...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixLim)));
             end
@@ -575,7 +585,18 @@ methods
             %             drawnow; % required for figure update on ML>=2018a
             %             refreshdata(cm.H.infoFig);%.Children(1));
         end
-        drawnow limitrate;    
+        drawnow limitrate;
+        
+        function strOut = dropCountString
+            try
+                ndrop = sum(diff(p.data{end}.timing.flipTimes(3,:))>1.1*cm.ifi);
+                medRend = median(p.data{end}.frameRenderTime)*1000;
+            catch
+                ndrop = nan;
+                medRend = nan;
+            end
+            strOut = sprintf('---- Trial % 5d: ----\n% 5.2f ms/frame\n% 5d  missed frames', p.trial.pldaps.iTrial-1, medRend, ndrop);
+        end
         
     end %updateInfoFig
 

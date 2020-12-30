@@ -1,13 +1,39 @@
 function p = pdsDefaultTrialStructure(p, stimulusname)
 % p = pdsDefaultTrialStructure(p)
 % pdsDefaultTrialStructure sets up the p struct for displaying all the
-% standard task parameters we use in huk lab
+% standard task parameters used in huk lab
+% 
+% UPDATED GUIDANCE (circa 2020)
+% -----------------------
+% Use of this setup function is no longer necessary/recommended.
+% Old code excessively relied on a hardcoded  "p.trial.stimulus"  element
+% of the pldaps object.
+% 
+% Modern coding approaches in PLDAPS lean on a more flexible system
+% of "pldaps modules" which expect the [p.trial.(sn)] name to be passed
+% as an input string to the module code, e.g.
+%   function p = modularDemo.pmBase(p, state, sn)
+%   % ...
+%   %   switch state
+%   %       case p.trial.pldaps.trialStates.frameUpdate
+%   %   ...
+% 
+% For an example of a modular PLDAPS replacement for much of what this
+% function did inside of the [p.trial.stimulus] field,
+% see also: modularDemo.pmBase
+% 
+% ---
+% 2020-12-30  TBC  Added comments clarifying proper replacement
+% 
 
-% Discourage use
-fprintf(2, fprintLineBreak('~', 1.2))
-fprintf(2, '~!~\t%s\tUsage of this function is deprecated ~!~\n', mfilename);
-fprintf('Please update your code to be consistent with modular PLDAPS style\n')
-fprintf(2, fprintLineBreak('~', 1.2))
+
+% Discourage use  --TBC 2020
+fprintf(2, fprintLineBreak('~'))
+fprintf(2, '~!~\t\tWARNING  %s.m  WARNING  \t\t~!~\n', mfilename);
+fprintf(2, '~!~\t\t   Usage of this function is deprecated \t\t\t~!~\n');
+fprintf('Please update your code for use with modular PLDAPS style\n')
+fprintf(2, fprintLineBreak('~'))
+
 
 if nargin<2
     stimulusname='stimulus';

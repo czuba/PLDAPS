@@ -216,10 +216,14 @@ end
 
 % Switch to high priority mode
 if p.trial.pldaps.maxPriority
-    oldPriority=Priority;
-    maxPriority=MaxPriority('GetSecs');
-    if oldPriority < maxPriority
-        Priority(maxPriority);
+    if IsLinux
+        Priority(p.trial.pldaps.maxPriority);
+    else
+        oldPriority=Priority;
+        maxPriority=MaxPriority('GetSecs');
+        if oldPriority < maxPriority
+            Priority(maxPriority);
+        end
     end
 end
 

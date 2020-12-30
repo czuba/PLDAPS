@@ -354,7 +354,10 @@ end %frameDrawingFinished
 %%  frameFlip
 function frameFlip(p)
 ft=cell(5,1); % empty cell to receive all outputs from Screen('Flip'...)
-[ft{:}] = Screen('Flip', p.trial.display.ptr, 0);   %p.trial.nextFrameTime + p.trial.trstart);
+% nextFrameTime = p.trial.nextFrameTime+p.trial.trstart -0.05*p.trial.display.ifi;
+nextFrameTime = 0; % flip on next available frame
+
+[ft{:}] = Screen('Flip', p.trial.display.ptr, nextFrameTime);
 p.trial.timing.flipTimes(:,p.trial.iFrame) = [ft{:}];
 
 % The overlay screen always needs to be initialized with a FillRect call
@@ -370,6 +373,25 @@ end %frameFlip
 %---------------------------------------------------------------------%
 %%  trialSetup
 function trialSetup(p)
+% ensure max priority at onset of every trial
+% Switch to high priority mode
+if p.trial.pldaps.maxPriority
+    % just set it already!
+    if IsLinux
+        Priority(p.trial.pldaps.maxPriority);
+    else
+        Priority(MaxPriority('GetSecs'));
+    end
+
+    %     oldPriority=Priority;
+    %     maxPriority=MaxPriority('GetSecs');
+    %     if oldPriority < maxPriority
+    %         Priority(maxPriority);
+    %     end
+end
+
+% fprintf('\n');  %DEBUG
+
 % p.trial.display = p.static.display.syncToTrialStruct(p.trial.display);
 % disp(p.trial.display.fixPos)
 % disp(p.trial.display.obsPos)
@@ -637,6 +659,14 @@ end %cleanUpandSave
 function experimentPreOpenScreen(p, sn)
 % setup some default modules
 
+% ensure Priority setting is executable value
+if p.trial.pldaps.maxPriority
+    p.trial.pldaps.maxPriority = double(p.trial.pldaps.maxPriority);
+    if IsLinux
+        % maximum warp!!!
+        p.trial.pldaps.maxPriority = 19;
+    end
+end
 % Tracking module
 if p.trial.tracking.use
     pds.tracking.setup(p, sn);

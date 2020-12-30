@@ -1,5 +1,5 @@
 function p = pmFixDot(p, state, sn)
-% function p = visBasics.pmFixLock(p, state, sn)
+% function p = modularDemo.pmFixDot(p, state, sn)
 %
 % PLDAPS module ("pm") for stereo fixation lock stimulus element
 %

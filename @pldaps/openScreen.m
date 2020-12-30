@@ -71,6 +71,24 @@ if p.trial.display.normalizeColor == 1
     % This is standard for all modern code
     disp('Normalized High res Color Range enabled')
     PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange', 1);
+    %
+    % PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange' [, applyAlsoToMakeTexture]);
+    % - additional details from PsychImaging.m:
+    %
+    % %   The optional flag 'applyAlsoToMakeTexture' defaults to zero. If set to 1,
+    % %   then a unit color range of expected input values in the [0; 1] range is
+    % %   also applied to standard 8-Bit precision textures in Screen('MakeTexture')
+    % %   if the provided Matlab imageMatrix is of double precision type instead of
+    % %   uint8 type.
+    % %   ...
+    % %   This is just a convenience shortcut for Screen('ColorRange', win, 1, 0, applyAlsoToMakeTexture);
+    % %   with the added benefit of allowing to specify the background clear
+    % %   color in normalized 0-1 range as well. This command is implied by use
+    % %   of any of the high precision display device drivers (for attenuators,
+    % %   Bits+ box etc.). It is only needed if you want to create the same
+    % %   visual results on a 8 bit standard framebuffer without needing to
+    % %   change your code, or if you want to set the 'applyAlsoToMakeTexture' flag to a
+    % %   setting of non-zero, so unit colorrange also applies to Screen('MakeTexture').
 end
 
 
@@ -160,10 +178,15 @@ end
 
 %% Color correction
 % Must be initialized before PTB screen opened, correction parameters are loaded/applied below
-if isField(p.trial, 'display.gamma.power')
-    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
+if isfield(p.trial.display, 'gamma')
+    if isField(p.trial.display.gamma, 'power')
+        PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
+    else
+        PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'LookupTable');
+    end
 else
-	PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'LookupTable');
+    % Set 'ClampOnly' color mode (default for Bits++, and rec for ProPixx(?))
+    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
 end
 
 % Functional modifications to PsychImaging prior to PTB screen creation
@@ -186,7 +209,8 @@ if ~isempty(p.trial.display.preOpenScreenFxn)
 end
 
 
-%% Open double-buffered onscreen window with the requested stereo mode
+%% PTB 'OpenWindow'
+%  - Open double-buffered onscreen window with the requested stereo mode
 disp('****************************************************************')
 fprintf('Opening screen %d with background %s in stereo mode %d\r', ...
         p.trial.display.scrnNum, mat2str(p.trial.display.bgColor), p.trial.display.stereoMode)
@@ -197,8 +221,8 @@ p.trial.display.ptr = ptr;
 p.trial.display.winRect = winRect;
 
 
-% % % [p.trial.display.postOpenScreenFxn]
 % Functional modifications to PsychImaging immediately AFTER PTB screen creation
+%   [p.trial.display.postOpenScreenFxn]
 if ~isempty(p.trial.display.postOpenScreenFxn)
     if ishandle(p.trial.display.postOpenScreenFxn)
         % eval as function handle
@@ -218,6 +242,7 @@ if p.trial.display.stereoMode > 0
     % Ensure initialized to consistent stereo buffer
     Screen('SelectStereoDrawBuffer', p.trial.display.ptr, p.trial.display.bufferIdx(1));
 end
+
 
 %% Retrieve/calculate some basic variables about the display
 
@@ -486,8 +511,8 @@ if isField(p.trial, 'display.gamma')
         end
     end
 else
-    %set a linear gamma
-    PsychColorCorrection('SetLookupTable', ptr, linspace(0,1,p.trial.display.info.realBitDepth)'*[1, 1, 1], 'FinalFormatting');
+    % do nothing, direct pass through to device while allowing PTB to 'ClampOnly' by default
+
 end
 
 % % This seems redundant. Is it necessary?

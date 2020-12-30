@@ -10,21 +10,21 @@ classdef pldaps < handle
 
 %% --- Properties ---
  properties
-    defaultParameters@params
+    defaultParameters params
 
-    conditions@cell %cell array with a struct like defaultParameters that only hold condition specific changes or additions
+    conditions cell %cell array with a struct like defaultParameters that only hold condition specific changes or additions
 
     condMatrix % machinery for selection & randomization of parameters set by the contents of p.conditions
     
-    trial %will get all variables from defaultParameters + correct conditions cell merged. This will get saved automatically. 
-          %You can add calculated paraneters to this struct, e.g. the
-          %actual eyeposition used for caculating the frame, etc.
-    data@cell
+    trial       %will get all variables from defaultParameters + correct conditions cell merged. This will get saved automatically. 
+                %You can add calculated paraneters to this struct, e.g. the
+                %actual eyeposition used for caculating the frame, etc.
+    data cell
     
-    static  % Storeage for handles and other data that needs to remain static across trials.
-            % WARNING: contents of .static are outside of the params class (p.trial), therefore
-            % changes may not be fully stored/tracked across trials. 
-            % Replaces disused .functionHandles from PLDAPS 4.1
+    static      % Storeage for handles and other data that needs to remain static across trials.
+                % WARNING: contents of .static are outside of the params class (p.trial), therefore
+                % changes may not be fully stored/tracked across trials. 
+                % Replaces disused .functionHandles from PLDAPS 4.1
  end
 
  

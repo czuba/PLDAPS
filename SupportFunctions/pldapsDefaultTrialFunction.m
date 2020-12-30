@@ -3,19 +3,30 @@ function pldapsDefaultTrialFunction(p,state, sn)
 % error('update code to use pldapsDefaultTrial.m')
 % ...eventually. Try to symlink w/ relative path to updated file name first
 
-% stimulus name is only used for one variable: eyeW
-if nargin<3
-    error('Use of PLDAPS modules without 3rd input string for module name is no longer allowed. See also  pldapsModule.m')
-    % default p.trial.stimulus field was killed off a while back --TBC 12/2019
-    %         sn='stimulus';
-end
 
 %% Redirect to:  pldapsDefaultTrial.m
+persistent beenWarned
+if isempty(beenWarned)
+    fprintf(2, fprintLineBreak('~'))
+    fprintf(2, '~!~\t\tWARNING  %s.m  WARNING  \t~!~\n', mfilename);
+    fprintf(2, '\tThis function has been migrated to:   pldapsDefaultTrial.m\n');
+    fprintf('Please update your code...this will become an error in the future.\n')
+    fprintf(2, fprintLineBreak('~'))
+    beenWarned = true;
+end
+
+
+% Error check:  Modular fieldname input MUST be provided as 3rd input to all PLDAPS functions
+if nargin<3
+    error('Use of PLDAPS modules without 3rd input string for module name is no longer allowed. See also  pldapsModule.m')
+    % default [p.trial.stimulus] field was killed off a while back --TBC 12/2019
+    %         sn='stimulus';
+end
 
 pldapsDefaultTrial(p, state, sn);
 
 return
-
+% ---------------------------------------------------------------- %
 
 
 %% Old code
@@ -126,17 +137,6 @@ end
                     disp('stepped into debugger. Type return to start first trial...')
                     keyboard %#ok<MCKBD>
              
-            % [C]alibration
-            % NOTE:  This OTF calibration trigger did not work in practice
-            % -- Necessary to start a new trial for calibration & changes to parameters here
-            % don't readily carry over to subsequent trials(by PLDAPS design)
-            % -- Should also require a modifier key to reduce chance of inadvertently causing
-            %
-            % % %             elseif  p.trial.keyboard.firstPressQ(p.trial.keyboard.codes.cKey)
-            % % %                 % data interruption/corruption
-            % % %                 p.trial.flagNextTrial = true;
-            % % %                 p.trial.tracking.on = true;
-
             end
         end
         
@@ -146,12 +146,7 @@ end
             % Return data in trial struct
             p.trial.mouse.samples = p.trial.mouse.samples+1;
             p.trial.mouse.samplesTimes(p.trial.mouse.samples)=GetSecs;
-%             if p.trial.tracking.use
-%                 mousexyz = [cursorX, cursorY, 1] * p.trial.mouse.calibration_matrix;
-%                 p.trial.mouse.cursorSamples(1:2,p.trial.mouse.samples) = mousexyz(1:2);
-%             else
-                p.trial.mouse.cursorSamples(1:2,p.trial.mouse.samples) = [cursorX;cursorY];
-%             end
+            p.trial.mouse.cursorSamples(1:2,p.trial.mouse.samples) = [cursorX;cursorY];
             p.trial.mouse.buttonPressSamples(:,p.trial.mouse.samples) = isMouseButtonDown';
             % Use as eyepos if requested
             if p.trial.mouse.useAsEyepos
@@ -327,12 +322,7 @@ end
     function frameDrawingFinished(p)
         % Check for & disable OpenGL mode before any Screen() calls (else will crash)
         if p.trial.display.useGL
-% % %             [~, IsOpenGLRendering] = Screen('GetOpenGLDrawMode');
-% % %             % NOTE: polling opengl for info is slow; might make sense to go-for-broke here
-% % %             % and assume an 'EndOpenGL' call is necessary given .useGL==true. Play it safe for now. --TBC Dec 2017
-% % %             if IsOpenGLRendering
-                Screen('EndOpenGL', p.trial.display.ptr);
-% % %             end
+            Screen('EndOpenGL', p.trial.display.ptr);
         end
 
         Screen('DrawingFinished', p.trial.display.ptr);
@@ -352,7 +342,6 @@ end
         ft=cell(5,1);
         [ft{:}] = Screen('Flip', p.trial.display.ptr, 0);   %p.trial.nextFrameTime + p.trial.trstart);
         p.trial.timing.flipTimes(:,p.trial.iFrame)=[ft{:}];
-%         p.trial.timing.flipTimes(1,p.trial.iFrame) = Screen('Flip', p.trial.display.ptr, 0);   %p.trial.nextFrameTime + p.trial.trstart);
         
         % The overlay screen always needs to be initialized with a FillRect call
         if p.trial.display.overlayptr ~= p.trial.display.ptr
@@ -368,7 +357,6 @@ end
 %%  trialSetup
     function trialSetup(p)
         p.trial.timing.flipTimes       = zeros(5,p.trial.pldaps.maxFrames);
-%         p.trial.timing.flipTimes       = zeros(1,p.trial.pldaps.maxFrames);
         p.trial.timing.frameStateChangeTimes=nan(9,p.trial.pldaps.maxFrames);
         
         if(p.trial.pldaps.draw.photodiode.use)
@@ -601,10 +589,6 @@ end
         %do a last frameUpdate   (checks & refreshes keyboard/mouse/analog/eye data)
         frameUpdate(p)
         
-%         % Flush KbQueue
-%         KbQueueStop();
-%         KbQueueFlush();
-
         %will this crash when more samples where created than preallocated?
         % mouse input
         if p.trial.mouse.use
@@ -741,21 +725,6 @@ end
             
             % Disable lighting
             glDisable(GL.LIGHTING);
-            % glDisable(GL.BLEND);
-            
-            % % %             if ds.goNuts
-            % % %                 % ...or DO ALL THE THINGS!!!!
-            % % %                 % Enable lighting
-            % % %                 glEnable(GL.LIGHTING);
-            % % %                 glEnable(GL.LIGHT0);
-            % % %                 % Set light position:
-            % % %                 glLightfv(GL.LIGHT0,GL.POSITION, [1 2 3 0]);
-            % % %                 % Enable material colors based on glColorfv()
-            % % %                 glEnable(GL.COLOR_MATERIAL);
-            % % %                 glColorMaterial(GL.FRONT_AND_BACK, GL.AMBIENT_AND_DIFFUSE);
-            % % %                 glMaterialf(GL.FRONT_AND_BACK, GL.SHININESS, 48);
-            % % %                 glMaterialfv(GL.FRONT_AND_BACK, GL.SPECULAR, [.8 .8 .8 1]);
-            % % %             end
         end
         Screen('EndOpenGL', ds.ptr)
     end %setupGLPerspective

@@ -30,7 +30,11 @@ function p = runModularTrial(p)
     %   called just before the trial starts for time critical calls  (e.g. to start data aquisition)
     runStateforModules(p, 'trialPrepare', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
 
-    %%% MAIN WHILE LOOP %%%
+    % %     % sync to screen refresh just before start of frame-dependent states
+    % %     Screen('WaitBlanking', p.trial.display.ptr);
+    
+    %% MODULAR TRIAL LOOP  %%
+    % - executes all PLDAPS .frame___ states
     %-------------------------------------------------------------------------%
     while ~p.trial.flagNextTrial && p.trial.pldaps.quit == 0
         % Advance to next frame, update frame index

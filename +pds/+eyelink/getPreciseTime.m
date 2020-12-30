@@ -7,6 +7,10 @@ function out=getPreciseTime(optMinwinThreshold,maxTimeThreshold,syncmode)
 % should be ignored. 
 %
 % jk wrote it 2014
+% 2020-12-16  TBC  Commenting out excessive Priority checks
+%                  - overchecking drags down efficacy of actually being at max priority!
+% 
+
     if nargin<3
         syncmode=2;
     end
@@ -21,10 +25,10 @@ function out=getPreciseTime(optMinwinThreshold,maxTimeThreshold,syncmode)
         error('Pds: Eyelink: getPreciseTime: choose a lower maxTimeThreshold or comment this line out. Your are risking a deadlick since this is running at maximum priority.')
     end
     
-    oldPriority=Priority;
-    if oldPriority < MaxPriority('GetSecs')
-            Priority(MaxPriority('GetSecs'));
-    end
+% % %     oldPriority=Priority;
+% % %     if oldPriority < MaxPriority('GetSecs')
+% % %             Priority(MaxPriority('GetSecs'));
+% % %     end
 
     stopTime=GetSecs + maxTimeThreshold;
 
@@ -56,9 +60,9 @@ function out=getPreciseTime(optMinwinThreshold,maxTimeThreshold,syncmode)
         ranOnce=true;
     end
 
-    if Priority ~= oldPriority
-            Priority(oldPriority);
-    end
+% % %     if Priority ~= oldPriority
+% % %             Priority(oldPriority);
+% % %     end
     
     %check PsychDataPixx:getPreciseTime for more info
     switch syncmode 

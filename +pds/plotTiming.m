@@ -124,7 +124,7 @@ if renderTimesToo
     xlabel('frame #'), ylabel('trial')
     colormap(gca, flipud(hot(12)));
     cl = max([0, ifi; prctile(fr(:),[2, 99.9])]); % scale to at least 1 frame,
-    set(gca,'plotboxaspectratio',pbaspect, 'clim',cl, 'tickdir','out'); box off
+    set(gca,'plotboxaspectratio',pbaspect, 'clim',cl, 'tickdir','out', 'xlim',[-5,minf+5]); box off
     cb = colorbar; ylabel(cb, 'msec')
     
     subplot(spy, spx, 4);       %*** subplot 4 ***
@@ -137,5 +137,44 @@ if renderTimesToo
     if nargout>0
         tdat.fr = fr;
     end
+    
 end
+
+return %main function
+
+
+
+%% extra timing plots
+% closer look at trouble trials & surrounding
+t = 11;
+ii = t+[-3:3]; ii(ii>ntr) = [];
+ntr = size(tdat.fr,2)
+nsamp = max(sum(~isnan(tdat.fr)))
+xl = nsamp*[-.02, 1.02];
+yl = [1, prctile(tdat.fr(:,ii), 99.8,'all')];
+
+figure
+
+subplot(2,1,1)
+lh = plot(tdat.fr(:,ii), 'linewidth',1);
+set(lh(ii==t), 'linewidth',2);
+box off
+legend(vec2tick(ii), 'box','off','location','northoutside','orientation','horizontal');
+xlim(xl);
+ylim(yl)
+
+subplot(2,1,2)
+ydat = tdat.fr(:,t);
+plot(ydat, 'linewidth',2);
+hold on, box off
+% flag significant timing increments
+k = find(diff(ydat)>=.25)+1;
+for i = 1:length(k)
+    plot(k(i), 1.3, '*')
+    hold on
+end
+legend([sprintf('trial%d',t); vec2tick(k)], 'box','off','location','northoutside','orientation','horizontal');
+
+xlim(xl);
+
 
