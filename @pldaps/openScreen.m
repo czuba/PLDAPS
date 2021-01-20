@@ -100,8 +100,14 @@ if p.trial.datapixx.use
     % Tell PTB we are using Datapixx
     PsychImaging('AddTask', 'General', 'UseDataPixx');
     
-    if p.trial.display.useOverlay==1 && ~p.trial.datapixx.rb3d
+    if p.trial.display.useOverlay==1 && p.trial.display.m16overlay && ~p.trial.datapixx.rb3d
         % Turn on the Datapixx "M16" hardware overlay
+        % - this [old] mode allowed elements rendered to overlay screen to also appear on the
+        %   subject's display, optionally with distinct colors
+        % - it was abandoned b/c required 32 bit frame buffers, which are excessively large
+        %   & slow, and method was not readily transferrable to complex 3D rendering modes.
+        % - Those running [legacy] code that depends on it can still enable it by
+        %   setting .m16overlay == true
         disp('Using Datapixx hardware overlay (EnableDataPixxM16OutputWithOverlay)')
         PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
         % This overlay implementation needs [jumbo!] 32-bit framebuffers

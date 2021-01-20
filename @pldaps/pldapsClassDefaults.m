@@ -8,7 +8,9 @@ function s = pldapsClassDefaults(s)
 % use createRigPrefs.m
 % 
 % 2020-03-02  TBC  Shortened name & wrote help text
+% 2021-01-20  TBC  Relegated M16 overlay mode to a flag for legacy compatibility
 % 
+
 
  if nargin<1
 	s=struct;
@@ -52,6 +54,7 @@ function s = pldapsClassDefaults(s)
  s.	display.	displayName = 'defaultScreenParameters';
  s.	display.	scrnNum = max(Screen('Screens'));
  s.	display.	useOverlay = 1;
+ s. display.    m16overlay = false; % this [old] mode allowed elements rendered to overlay screen to also appear in different colors on subject's display (abandoned b/c required 32 bit frame buffers, which are excessively large & slow)
  s.	display.	screenSize = screenSizeSelector(s.display.scrnNum);
  s.	display.	heightcm = 45;
  s.	display.	widthcm = 63;
