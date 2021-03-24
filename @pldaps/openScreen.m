@@ -191,10 +191,10 @@ end
 
 
 %% Open double-buffered onscreen window with the requested stereo mode
-disp('****************************************************************')
+fprintLineBreak
 fprintf('Opening screen %d with background %s in stereo mode %d\r', ...
         p.trial.display.scrnNum, mat2str(p.trial.display.bgColor), p.trial.display.stereoMode)
-disp('****************************************************************')
+fprintLineBreak('-')
 
 [ptr, winRect] = PsychImaging('OpenWindow', p.trial.display.scrnNum, p.trial.display.bgColor, p.trial.display.screenSize, [], [], p.trial.display.stereoMode, p.trial.display.multisample);
 p.trial.display.ptr = ptr;
@@ -326,6 +326,7 @@ Screen('TextStyle',p.trial.display.ptr,1);
 
 
 %% Overlay selection & creation
+fprintLineBreak;
 if p.trial.display.useOverlay==1
     %% 'Standard' PLDAPS Overlay creation
     % Prevent text antialiasing from causing overlay to bleed over into subject display
@@ -363,8 +364,12 @@ if p.trial.display.useOverlay==1
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
 
         end
+        
+        fprintf('Standard PLDAPS Overlay enabled & implemented via Datapixx box\n')
+        
     else
-        warning('pldaps:openScreen', 'Datapixx Overlay requested but datapixx disabled. No Dual head overlay availiable!')
+        % common scenario (esp. during development), and not worthy of issuing a full 'warning' message
+        fprintf('Standard PLDAPS Overlay requested, but Datapixx disabled (.datapixx.use==0)\nOverlay will be rendered on subject display instead.\n')
         p.trial.display.overlayptr = p.trial.display.ptr;
         
     end
@@ -388,9 +393,6 @@ elseif p.trial.display.useOverlay==2
             shSrc = sprintf('uniform sampler2DRect overlayImage; float getMonoOverlayIndex(vec2 pos) { return(texture2DRect(overlayImage, pos * vec2(%f, %f)).r); }', sampleX, sampleY);
 
     % if using a software overlay, the window size needs to [already] be halved.
-    disp('****************************************************************')
-    disp('Using software overlay window')
-    disp('****************************************************************')
 	oldColRange = Screen('ColorRange', p.trial.display.ptr, 255);
     p.trial.display.overlayptr=Screen('OpenOffscreenWindow', p.trial.display.ptr, 0, [0 0 p.trial.display.widthPx p.trial.display.heightPx], 8, 32);
     % Put stimulus color range back how it was
@@ -464,14 +466,16 @@ elseif p.trial.display.useOverlay==2
     Screen('HookFunction', p.trial.display.ptr, 'Reset', 'FinalOutputFormattingBlit');
     Screen('HookFunction', p.trial.display.ptr, 'AppendShader', 'FinalOutputFormattingBlit', idString, p.trial.display.shader, pString);
     PsychColorCorrection('ApplyPostGLSLLinkSetup', p.trial.display.ptr, 'FinalFormatting');
+    
+	fprintf('Software PLDAPS Overlay enabled & implemented via OpenGL shaders\n')
 else
+    fprintf('No PLDAPS Overlay selected (.display.useOverlay==%d)\n', p.trial.display.useOverlay);
     p.trial.display.overlayptr = p.trial.display.ptr;
 end
 
 
 %% Apply display calibration (e.g. gamma encoding or lookup table)
 if isfield(p.trial.display, 'gamma') 
-    % disp('****************************************************************')
     fprintLineBreak
     if isfield(p.trial.display.gamma, 'power') && ~isempty(p.trial.display.gamma.power)
         % allow .power correction to take precident
@@ -503,9 +507,7 @@ end
 
 % % This seems redundant. Is it necessary?
 if p.trial.display.colorclamp == 1
-    %disp('****************************************************************')
-    disp('clamping color range [0:1]')
-    %disp('****************************************************************')
+    fprintf('clamping color range [0:1]\n')
     Screen('ColorRange', p.trial.display.ptr, 1, 0);
 end
 
@@ -549,9 +551,8 @@ end
 %% Setup OpenGL blend functions
 %   --  e.g. for smooth (anti-aliased) dot rendering, use alpha-blending:
 %       Screen('BlendFunction', p.trial.display.ptr, 'GL_SRC_ALPHA','GL_ONE_MINUS_SRC_ALPHA');
-disp('****************************************************************')
+fprintLineBreak
 fprintf('Setting Blend Function to %s,%s\r', p.trial.display.sourceFactorNew, p.trial.display.destinationFactorNew);
-disp('****************************************************************')
 Screen('BlendFunction', p.trial.display.ptr, p.trial.display.sourceFactorNew, p.trial.display.destinationFactorNew);  % alpha blending for anti-aliased dots
 
 if p.trial.display.forceLinearGamma %does't really belong here, but need it before the first flip....

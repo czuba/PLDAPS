@@ -65,8 +65,16 @@ function p = frameUpdate(p)
         
     % Apply calibrated data as current eye position
     if p.trial.(src).useAsEyepos
+        try
+            prevX = p.trial.eyeX;
+            prevY = p.trial.eyeY;
+        catch
+            prevX = pos(1,:)';
+            prevY = pos(2,:)';
+        end
         p.trial.eyeX = pos(1,:)';
         p.trial.eyeY = pos(2,:)';
+        p.trial.eyeDelta = [p.trial.eyeX-prevX; p.trial.eyeY-prevY];
     end
                     
 end %main function
