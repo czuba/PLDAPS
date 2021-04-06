@@ -186,6 +186,8 @@ if p.trial.datapixx.use
     % start of experiment sync signal (Plexon: set RSTART pin high, return PTB & Datapixx clock times)
     % Even if not using Plexon recording, this will establish PLDAPS exptStartTime
     p.trial.timing.exptStartTime = pds.plexon.rstart(1);
+else
+    p.trial.timing.exptStartTime = GetSecs;
 end
 
 
@@ -437,6 +439,8 @@ end
 if p.trial.datapixx.use
     % start of experiment sync signal (Plexon: set RSTART pin high, return PTB & Datapixx clock times)
     p.trial.timing.exptEndTime = pds.plexon.rstart(0);
+else
+    p.trial.timing.exptEndTime = GetSecs;
 end
 
 %% Close Eyelink

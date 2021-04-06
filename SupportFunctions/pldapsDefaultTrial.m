@@ -511,7 +511,9 @@ p.trial.trstart = GetSecs;
 
 % Tell datapixx to save a timestamp marker at the next frame flip. These will be
 % transferred from datapixx box to PTB machine during completion of experiment (by run.m)
-PsychDataPixx('LogOnsetTimestamps',1);%2
+if p.trial.datapixx.LogOnsetTimestampLevel==1
+    PsychDataPixx('LogOnsetTimestamps', p.trial.datapixx.LogOnsetTimestampLevel);
+end
 
 end %trialPrepare
 

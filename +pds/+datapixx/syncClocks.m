@@ -5,7 +5,7 @@ function syncresult = syncClocks(syncSettings)
     if nargin<1
         % Initialize a PLDAPS object containing class & rig defaults
         p = pldaps('test','nothing');
-        syncSettings = p.datapixx.GetPreciseTime;
+        syncSettings = p.trial.datapixx.GetPreciseTime;
         
         % Only mess with priority if nothing passed as input, otherwise
         % assume PLDAPS has already taken care of maximizing Priority
