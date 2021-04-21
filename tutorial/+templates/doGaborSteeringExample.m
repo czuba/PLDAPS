@@ -161,7 +161,7 @@ pss.(sn).waitForGo = 2;     % wait for button press (right shift key) before beg
 pss.(sn).waitForResp = 1; % wait for (.hasResponse == true) || (.stateDur time expired)
 
 
-%% (10) drifting gabor module:  glDraw.pmMatrixGabs.m
+%% (10) drifting gabor module:  templates.pmTemplate_matrixModuleGabor.m
 
     %% Initialization
     % Initialize matrixModule(s) inside your "do" experiment wrapper by first setting up
@@ -225,7 +225,7 @@ pss.(sn).waitForResp = 1; % wait for (.hasResponse == true) || (.stateDur time e
         pss.(mN).stateFunction.modName = mN; % Update it's internalized name field
         
         % timing: each module [onset, offset] time in sec (relative to STIMULUS state start)
-        % - timing imposed by behavioral control module (e.g. modularDemo.pmBase)
+        % - timing of matrixModule on/offset imposed w/in behavioral control module (e.g. modularDemo.pmBase)
         basedur = (i-1)*stimModuleDur;
         pss.(mN).modOnDur = [0, stimModuleDur-tmpModule.isi] +basedur; % subtract isi from offset
 
@@ -254,7 +254,7 @@ dirs = dinc:dinc:360; % motion directions
 
 % starting stimulus location
 xs = [-8, 8];
-ys = [-4, 4];
+ys = [0];   %[-4, 4];
 
 % make a fully crossed matrix
 [xx, yy, dd] = ndgrid( xs, ys, dirs);

@@ -453,7 +453,7 @@ methods
                     % Negative dimension modes shuffle order of that dim, while maintaining order of all others.
                     % This eval solution is scrappy, but it works, and haven't found similar functionality elsewhere --TBC 2018-08
                     ii = abs(cm.randMode(i));
-                    eStr = ['newOrder = newOrder(',repmat(':,',1, ii-1), mat2str(randperm(sz(ii))), repmat(',:',1, condDims-ii),');']
+                    eStr = ['newOrder = newOrder(',repmat(':,',1, ii-1), mat2str(randperm(sz(ii))), repmat(',:',1, condDims-ii),');'] %#ok<NOPRT>
                     eval(eStr)
                 else
                     % 0 does nothing to that dimension
@@ -541,24 +541,43 @@ methods
         if ishandle(cm.H.infoFig)
             pctRemain = mean(cm.condReps(:)==cm.iPass)*100; %(1-(numel(cm.order)-cm.i) / numel(cm.conditions)) *100;
             
+            % EXPT STATUS AXES
             % trial count text
-            cm.H.infoFig.Children(1).Children(end).String = sprintf('Trial:  %5d\nPass:  %5d  (%02.1f%%)', p.trial.pldaps.iTrial, cm.iPass, pctRemain);  % cm.i/numel(cm.order)*100);
+            cm.H.exptStatusAx.Children(end).String = sprintf('Trial:  %5d\nPass:  %5d  (%02.1f%%)', p.trial.pldaps.iTrial, cm.iPass, pctRemain);  % cm.i/numel(cm.order)*100);
             % fixation text
-            cm.H.infoFig.Children(1).Children(end-1).String = sprintf('Fix Pos:    %s\nFix Lim:    %s',...
+            cm.H.exptStatusAx.Children(end-1).String = sprintf('Fix Pos:    %s\nFix Lim:    %s',...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixPos),...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixLim));
+                
+            % USER PROMPT AXES
+            if isfield(cm.H, 'userPromptStr')
+                if iscell(cm.H.userPromptStr)
+                    promptStr = [cm.H.userPromptStr{:}];
+                elseif ischar(cm.H.userPromptStr) || isstring(cm.H.userPromptStr)
+                    promptStr = cm.H.userPromptStr;
+                else
+                    promptStr = '';
+                end
+                cm.H.userPromptAx.Children(end).String = promptStr;
+                axis(cm.H.userPromptAx, 'tight');
+            end
+                
+                
             refreshdata(cm.H.infoFig);%.Children(1));
             
         else
             % Info figure
+            figBgCol = 0.5*[1 1 1]';
             Hf = figure(cm.baseIndex); clf;
-            set(Hf, 'windowstyle','normal', 'toolbar','none', 'menubar','none', 'selectionHighlight','off', 'color',.5*[1 1 1], 'units','normalized');%'position',[1000,100,400,300])
+            set(Hf, 'windowstyle','normal', 'toolbar','none', 'menubar','none', 'selectionHighlight','off', 'color',figBgCol, 'units','normalized');%'position',[1000,100,400,300])
             set(Hf, 'Name', p.trial.session.file, 'NumberTitle','off', 'position', [.8,.02,.18,.2]);
+            % only need handle to parent figure to access all contents
+            cm.H.infoFig = Hf;
             
-            % Axes for text
-            ha = axes;
+            % Axes for Experiment Status text
+            ha = axes(Hf, 'tag','exptStatusAx', 'Units','Normalized', 'Position',[.05 .25 .9 .7]);
             box off;
-            set(ha, 'color',.5*[1 1 1], 'fontsize',10);
+            set(ha, 'color','none', 'fontsize',10);
             axis(ha, [0 1 0 1]); axis off
             fsz = 12;
             % Basic trial info text
@@ -569,9 +588,27 @@ methods
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixLim)));
             end
             set(ht, 'fontsize',fsz);
+            % include ax handle in obj
+            cm.H.exptStatusAx = ha;
+
             
-            % only need handle to parent figure to access all contents
-            cm.H.infoFig = Hf;
+            % Axes for User Prompt text
+            if ~isfield(cm.H, 'userPromptStr')
+                cm.H.userPromptStr = '';
+            end
+            hp = axes(Hf, 'tag','userPromptAx', 'Units','Normalized', 'Position',[.05 .02 .7 .2]);
+            box off;
+            set(hp, 'color','none', 'fontsize',10);
+            axis off
+            fsz = 12;
+            % User prompt text
+            % - for [transient] instruction (e.g. "press spacebar to go")
+            %   that you wouldn't otherwise want presented on screen or stacking up in command window
+            ht = text(hp, 0, 0.8, cm.H.userPromptStr);
+            set(ht, 'fontweight','bold');
+            % include ax handle in obj
+            cm.H.userPromptAx = hp;
+
             %             drawnow; % required for figure update on ML>=2018a
             %             refreshdata(cm.H.infoFig);%.Children(1));
         end

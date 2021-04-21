@@ -60,36 +60,19 @@ function p = pmTemplate_track2fix(p, state, sn)
 switch state
     
     case p.trial.pldaps.trialStates.frameUpdate
-        
-        checkState(p,sn);  % this is the main work that this module does
+        % This is the main work that this module does
+        % - Check behavioral status (eye position, keys pressed, ...etc)
+        %   & current time w/in trial
+        % - Use to determine current behavioral state of trial
+        % - Activate relevant module(s) & update condMatrix
+        checkState(p,sn);  % Nested Function
         
         
     %case p.trial.pldaps.trialStates.framePrepareDrawing
     
     case p.trial.pldaps.trialStates.trialSetup
-
-        p.trial.(sn).state              = p.trial.(sn).states.WAITFIX;
-        p.trial.(sn).statesStartTime    = nan(p.trial.(sn).nstates, 1);
-        p.trial.(sn).statesStartFrame   = nan(p.trial.(sn).nstates, 1);
-        p.trial.(sn).statesStartTime(p.trial.(sn).state)    = 0;
-        p.trial.(sn).statesStartFrame(p.trial.(sn).state)   = 1;
-        
-        % Ensure current fixation module is ON
-        p.trial.(p.trial.pldaps.modNames.currentFix{:}).on = true;
-        p.trial.(sn).timestamp = datetime;
-
-        % Ensure STIMULUS stateDur(3) is at least as long as longest active module
-        % Not crazy about this hack...its here as a safety net, not SOP.  TBC 2019-08-29
-        maxDur = p.trial.(sn).stateDur(3);
-        for i = 1:length(p.trial.pldaps.modNames.matrixModule)
-            mN = p.trial.pldaps.modNames.matrixModule{i};
-            if p.trial.(mN).use
-                maxDur = max(p.trial.(mN).modOnDur(end)*p.trial.(sn).scaleDur + p.trial.display.ifi, maxDur);
-            end
-        end
-        p.trial.(sn).stateDur(3) = maxDur; 
-        
-        p.trial.(sn).success = false; % ensure .success exists in p.data{} struct
+        % initialize timing parameters & states
+        trialSetup(p, sn);  % Nested Function
         
     case p.trial.pldaps.trialStates.trialCleanUpandSave
         % Put any unused matrix conditions back into the order queue
@@ -98,25 +81,14 @@ switch state
         
         % EXPT STATES
     case p.trial.pldaps.trialStates.experimentPreOpenScreen
-        initParams(p, sn);
+        initParams(p, sn);  % Nested Function
         % register behavioral state module name
         p.trial.pldaps.modNames.behavior = {sn};
         
         
     case p.trial.pldaps.trialStates.experimentPostOpenScreen
-        % convert state duration into nframes
-        p.trial.(sn).stateDurFrames = ceil(p.trial.(sn).stateDur .* p.trial.display.frate);
+        postOpenScreen(p, sn);  % Nested Function
 
-        % initialize matrix modules with .shown==false
-        initModules(p, p.trial.pldaps.modNames.matrixModule);
-        
-        % allow stateDur units of [seconds] or [# of display frames]
-        if isprop(p.condMatrix,'useFrameDurations') && p.condMatrix.useFrameDurations
-            p.trial.(sn).scaleDur = p.trial.display.ifi;
-        else
-            p.trial.(sn).scaleDur = 1;
-        end
-        
 end
 
 return
@@ -127,250 +99,326 @@ return
 % Nested-Functions
 % % % % % % % % % % % %
 
-%% putBackConds
-function putBackConds
-    if ~isempty(p.condMatrix)
-        p.trial.(sn).condsShown = p.condMatrix.putBack(p);
-    end
-end % putBackConds
-
-
 %% checkState
-function [] = checkState(p, sn)
-% here is where the logic of a trial is controlled
-
-isheld = p.checkFixation(p, p.trial.pldaps.modNames.currentFix{1});
-% Set fixation .mode==0 to ignore fixation & always return isheld==true
-%   - i.e.  p.trial.(p.trial.pldaps.modNames.currentFix{1}).mode = 0;
-
-thisState = p.trial.(sn).state; % shorthand
-
-% Behavioral state machine
-switch thisState
-    % wait for fixation acquired
-    case p.trial.(sn).states.WAITFIX
+    function checkState(p, sn)
+        % here is where the logic of a trial is controlled
         
-        % check for 'goSignal' keypress
-        if p.trial.(sn).waitForGo
-            goSignal = p.trial.keyboard.firstPressQ(p.trial.(sn).goSignal)>0;
-        end
+        isheld = p.checkFixation(p, p.trial.pldaps.modNames.currentFix{1});
+        % Set fixation .mode==0 to ignore fixation & always return isheld==true
+        %   - i.e.  p.trial.(p.trial.pldaps.modNames.currentFix{1}).mode = 0;
         
-        switch p.trial.(sn).waitForGo
-            case 0
-                % advance when fixation acquired (isheld==true)
-                go = isheld;
-            case 1
-                % % advance when fixation acquired (isheld==true) OR designated goSignal detected
-                go = isheld || goSignal;
-            case 2
-                % advance when fixation acquired (isheld==true) AND designated goSignal detected
-                go = isheld && goSignal;
-            otherwise
-                go = false;
-        end
-
-        if go
-            % Fixation conditions met, move on!
-            setStateStart(p,sn, p.trial.(sn).states.HOLDFIX)
-        end
+        thisState = p.trial.(sn).state; % shorthand
         
-        
-    case p.trial.(sn).states.HOLDFIX
-
-        % check fixation is maintained
-        if ~isheld %~p.checkFixation(p)
-            fixationBroken;
-        end
-        
-        % Pre-trial complete, go to stim presentation
-        if p.trial.ttime >= ...
-                p.trial.(sn).statesStartTime(thisState)...
-                + p.trial.(sn).stateDur(thisState)
-            % Advance to STIMULUS state
-            setStateStart(p,sn, p.trial.(sn).states.STIMULUS);
-        end
-        
-        
-    case p.trial.(sn).states.STIMULUS
-        
-        % check that fixation is maintained
-        if ~isheld %~p.checkFixation(p)
-            fixationBroken;
-        end
-        
-        % Stim presentation time
-        if p.trial.(sn).success || p.trial.ttime >= ...
-                p.trial.(sn).statesStartTime(thisState)...
-                + p.trial.(sn).stateDur(thisState)
-            % Stimulus is complete.
-            
-            % Ensure syncs are sent for any matrixModules still 'on'
-            % TBC:  May be a time sink and/or dangerous to artificially mark matrixModule
-            %       as 'complete' here. Ideally, module durations should be set so that 
-            %       this doesn't occur & this check is unnecessary
-            for i = 1:length(p.trial.pldaps.modNames.matrixModule)
-                mN = p.trial.pldaps.modNames.matrixModule{i};
-                if p.trial.(mN).on      % Module offset
-                    if p.trial.datapixx.use
-                        % send condition index pulse at module offset
-                        p.trial.datapixx.strobeQ(end+1) = p.condMatrix.baseIndex + p.trial.(mN).condIndex;
-                    end
-                    p.trial.(mN).on = false;
-                    if ~p.trial.(sn).success
-                        % stimulus duration ended without acquiring target position
-                        p.trial.(mN).shown = -1;
-                    end
-                end
-            end
-            
-            % Advance to RESPONSE state
-            setStateStart(p,sn, p.trial.(sn).states.RESPONSE);
-            
-        else
-            % Activate matrixModule(s) according to trial time
-            ttimeStimulus = p.trial.ttime - p.trial.(sn).statesStartTime(thisState);            
-            
-            for i = 1:length(p.trial.pldaps.modNames.matrixModule)
-                mN = p.trial.pldaps.modNames.matrixModule{i};
+        % Behavioral state machine
+        switch thisState
+            % wait for fixation acquired
+            case p.trial.(sn).states.WAITFIX
                 
-                if ttimeStimulus >= p.trial.(mN).modOnDur(2)*p.trial.(sn).scaleDur
-                    % Module offset
-                    % send condition index pulse at motion offset
-                    if p.trial.datapixx.use && p.trial.(mN).on
-                        p.trial.datapixx.strobeQ(end+1) = p.condMatrix.baseIndex + p.trial.(mN).condIndex;
-                    end
-                    p.trial.(mN).on = false; % past expiration of module duration
-                    p.trial.(mN).shown = true;                    
-                    
-                elseif ttimeStimulus >= p.trial.(mN).modOnDur(1)*p.trial.(sn).scaleDur
-                    % Module onset
-                    p.trial.(mN).on = true; % module is active
-                    % % Cannot send on & offset pulses; for-loop execution too fast for minimum interval between strobe pulses.
-                    % % NOTE: Less a factor with Omniplex (rel to Plexon MAP) & use of pds.datapixx.strobeQueue.m
-                    % %       Could revisit this if needed, but hasn't been missed & would need solution for unique onset strobe#.
-                    % %       -- TBC 2020-10
+                % check for 'goSignal' keypress
+                if p.trial.(sn).waitForGo
+                    goSignal = p.trial.keyboard.firstPressQ(p.trial.(sn).goSignal)>0;
                 end
-            end
-        end
+                
+                switch p.trial.(sn).waitForGo
+                    case 0
+                        % advance when fixation acquired (isheld==true)
+                        go = isheld;
+                    case 1
+                        % % advance when fixation acquired (isheld==true) OR designated goSignal detected
+                        go = isheld || goSignal;
+                    case 2
+                        % advance when fixation acquired (isheld==true) AND designated goSignal detected
+                        go = isheld && goSignal;
+                    otherwise
+                        go = false;
+                end
+                
+                if go
+                    % Fixation conditions met, move on!
+                    setStateStart(p,sn, p.trial.(sn).states.HOLDFIX)
+                end
+                
+                
+            case p.trial.(sn).states.HOLDFIX
+                
+                % check fixation is maintained
+                if ~isheld %~p.checkFixation(p)
+                    fixationBroken;
+                end
+                
+                % Pre-trial complete, go to stim presentation
+                if p.trial.ttime >= ...
+                        p.trial.(sn).statesStartTime(thisState)...
+                        + p.trial.(sn).stateDur(thisState)
+                    % Advance to STIMULUS state
+                    setStateStart(p,sn, p.trial.(sn).states.STIMULUS);
+                end
+                
+                
+            case p.trial.(sn).states.STIMULUS
+                
+                % check that fixation is maintained
+                if ~isheld %~p.checkFixation(p)
+                    fixationBroken;
+                end
+                
+                % Stim presentation time
+                if p.trial.(sn).success || p.trial.ttime >= ...
+                        p.trial.(sn).statesStartTime(thisState)...
+                        + p.trial.(sn).stateDur(thisState)
+                    % Stimulus is complete.
+                    
+                    % Ensure syncs are sent for any matrixModules still 'on'
+                    % TBC:  May be a time sink and/or dangerous to artificially mark matrixModule
+                    %       as 'complete' here. Ideally, module durations should be set so that
+                    %       this doesn't occur & this check is unnecessary
+                    for i = 1:length(p.trial.pldaps.modNames.matrixModule)
+                        mN = p.trial.pldaps.modNames.matrixModule{i};
+                        if p.trial.(mN).on      % Module offset
+                            if p.trial.datapixx.use
+                                % send condition index pulse at module offset
+                                p.trial.datapixx.strobeQ(end+1) = p.condMatrix.baseIndex + p.trial.(mN).condIndex;
+                            end
+                            p.trial.(mN).on = false;
+                            if ~p.trial.(sn).success
+                                % stimulus duration ended without acquiring target position
+                                p.trial.(mN).shown = -1;
+                            end
+                        end
+                    end
+                    
+                    % Advance to RESPONSE state
+                    setStateStart(p,sn, p.trial.(sn).states.RESPONSE);
+                    
+                else
+                    % Activate matrixModule(s) according to trial time
+                    ttimeStimulus = p.trial.ttime - p.trial.(sn).statesStartTime(thisState);
+                    
+                    for i = 1:length(p.trial.pldaps.modNames.matrixModule)
+                        mN = p.trial.pldaps.modNames.matrixModule{i};
+                        
+                        if ttimeStimulus >= p.trial.(mN).modOnDur(2)*p.trial.(sn).scaleDur
+                            % Module offset
+                            % send condition index pulse at motion offset
+                            if p.trial.datapixx.use && p.trial.(mN).on
+                                p.trial.datapixx.strobeQ(end+1) = p.condMatrix.baseIndex + p.trial.(mN).condIndex;
+                            end
+                            p.trial.(mN).on = false; % past expiration of module duration
+                            p.trial.(mN).shown = true;
+                            
+                        elseif ttimeStimulus >= p.trial.(mN).modOnDur(1)*p.trial.(sn).scaleDur
+                            % Module onset
+                            p.trial.(mN).on = true; % module is active
+                            % % Cannot send on & offset pulses; for-loop execution too fast for minimum interval between strobe pulses.
+                            % % NOTE: Less a factor with Omniplex (rel to Plexon MAP) & use of pds.datapixx.strobeQueue.m
+                            % %       Could revisit this if needed, but hasn't been missed & would need solution for unique onset strobe#.
+                            % %       -- TBC 2020-10
+                        end
+                    end
+                end
+                
+                
+            case p.trial.(sn).states.RESPONSE
+                
+                % check stateDur elapsed
+                timeExpired =   isnan(p.trial.(sn).stateDur(thisState)) || ...
+                    p.trial.ttime >=  p.trial.(sn).statesStartTime(thisState) + p.trial.(sn).stateDur(thisState);
+                
+                % check for trial completion
+                % - use external response module to poll/detect subject response & toggle [.hasResponse]
+                switch p.trial.(sn).waitForResp
+                    case 0
+                        % advance when stateDur exceeded, regardless of response state
+                        endTrial = timeExpired;
+                    case 1
+                        % advance when stateDur exceeded OR hasResponse=true
+                        endTrial = timeExpired || p.trial.(sn).hasResponse;
+                    case 2
+                        % advance when stateDur exceeded AND hasResponse=true
+                        endTrial = timeExpired && p.trial.(sn).hasResponse;
+                    otherwise
+                        endTrial = false;
+                end
+                
+                if endTrial
+                    % give reward
+                    if p.trial.(sn).success
+                        pds.behavior.reward.give(p);
+                    end
+                    
+                    % set state to END & advance to next trial
+                    setStateStart(p,sn, p.trial.(sn).states.END);
+                    p.trial.pldaps.goodtrial = 1;
+                    p.trial.flagNextTrial = 1;
+                end
+                
+        end %behavioral state machine
         
-        
-    case p.trial.(sn).states.RESPONSE
-
-        % check stateDur elapsed
-        timeExpired =   isnan(p.trial.(sn).stateDur(thisState)) || ...
-            p.trial.ttime >=  p.trial.(sn).statesStartTime(thisState) + p.trial.(sn).stateDur(thisState);
-        
-        % check for trial completion
-        % - use external response module to poll/detect subject response & toggle [.hasResponse]
-        switch p.trial.(sn).waitForResp
-            case 0
-                % advance when stateDur exceeded, regardless of response state
-                endTrial = timeExpired;
-            case 1
-                % advance when stateDur exceeded OR hasResponse=true
-                endTrial = timeExpired || p.trial.(sn).hasResponse;
-            case 2
-                % advance when stateDur exceeded AND hasResponse=true
-                endTrial = timeExpired && p.trial.(sn).hasResponse;
-            otherwise
-                endTrial = false;
-        end
-        
-        if endTrial
-            % give reward
-            if p.trial.(sn).success
-                pds.behavior.reward.give(p);
-            end
-            
-            % set state to END & advance to next trial
-            setStateStart(p,sn, p.trial.(sn).states.END);
-            p.trial.pldaps.goodtrial = 1;
+        % % % % % % % % % % % %
+        % Nested-Function (w/in checkState)
+        % % % % % % % % % % % %
+        function fixationBroken
+            % set state to BREAKFIX & advance to next trial
+            setStateStart(p,sn, p.trial.(sn).states.BREAKFIX);
+            p.trial.pldaps.goodtrial = 0;
             p.trial.flagNextTrial = 1;
-        end
+            
+            % Put any unused matrix conditions back into the order queue
+            % ** NO, don't do this here/repeatedly **
+            %    Moved to .trialCleanupAndSave so that single code instance always
+            %    runs at end of trial, regardless of exit state.
+            % putBackConds; % Nested Function
+            return
+        end %fixationBroken
         
-end %behavioral state machine
-
-    % % % % % % % % % % % %
-    % Nested-Function (w/in checkState)
-    % % % % % % % % % % % %
-    function fixationBroken
-        % set state to BREAKFIX & advance to next trial
-        setStateStart(p,sn, p.trial.(sn).states.BREAKFIX);
-        p.trial.pldaps.goodtrial = 0;
-        p.trial.flagNextTrial = 1;
-
-        % Put any unused matrix conditions back into the order queue
-        % ** NO, don't do this here/repeatedly **
-        %    Moved to .trialCleanupAndSave so that single code instance always
-        %    runs at end of trial, regardless of exit state.
-        % putBackConds; % Nested Function
-        return
-    end %fixationBroken
-    
-end %checkState
+    end %checkState
 
 
 %% setStateStart
-function setStateStart(p,sn, thisState)
-    if nargin>2
-        p.trial.(sn).state = thisState;
-    else
-        thisState = p.trial.(sn).state;
+    function setStateStart(p,sn, thisState)
+        if nargin>2
+            p.trial.(sn).state = thisState;
+        else
+            thisState = p.trial.(sn).state;
+        end
+        % record timing in sec & frames
+        p.trial.(sn).statesStartTime(thisState) = p.trial.ttime;
+        p.trial.(sn).statesStartFrame(thisState) = p.trial.iFrame;
+    end %setStateStart
+
+
+%% putBackConds
+    function putBackConds
+        if ~isempty(p.condMatrix)
+            p.trial.(sn).condsShown = p.condMatrix.putBack(p);
+        end
+    end % putBackConds
+
+
+%% trialSetup
+    function trialSetup(p, sn)
+        
+        p.trial.(sn).state              = p.trial.(sn).states.WAITFIX;
+        p.trial.(sn).statesStartTime    = nan(p.trial.(sn).nstates, 1);
+        p.trial.(sn).statesStartFrame   = nan(p.trial.(sn).nstates, 1);
+        p.trial.(sn).statesStartTime(p.trial.(sn).state)    = 0;
+        p.trial.(sn).statesStartFrame(p.trial.(sn).state)   = 1;
+        
+        % Ensure current fixation module is ON
+        p.trial.(p.trial.pldaps.modNames.currentFix{:}).on = true;
+        p.trial.(sn).timestamp = datetime;
+        
+        % Ensure STIMULUS stateDur(3) is at least as long as longest active module
+        % Not crazy about this hack...its here as a safety net, not SOP.  TBC 2019-08-29
+        maxDur = p.trial.(sn).stateDur(3);
+        for i = 1:length(p.trial.pldaps.modNames.matrixModule)
+            mN = p.trial.pldaps.modNames.matrixModule{i};
+            if p.trial.(mN).use
+                maxDur = max(p.trial.(mN).modOnDur(end)*p.trial.(sn).scaleDur + p.trial.display.ifi, maxDur);
+            end
+        end
+        p.trial.(sn).stateDur(3) = maxDur;
+        
+        p.trial.(sn).success = false; % ensure .success exists in p.data{} struct
+        
     end
-    % record timing in sec & frames
-    p.trial.(sn).statesStartTime(thisState) = p.trial.ttime;
-    p.trial.(sn).statesStartFrame(thisState) = p.trial.iFrame;
-end %setStateStart
+
+
+%% postOpenScreen
+    function postOpenScreen(p, sn)
+        % convert state duration into nframes
+        p.trial.(sn).stateDurFrames = ceil(p.trial.(sn).stateDur .* p.trial.display.frate);
+        
+        % initialize matrix modules with .shown==false
+        initModules(p, p.trial.pldaps.modNames.matrixModule);
+        
+        % allow stateDur units of [seconds] or [# of display frames]
+        if isprop(p.condMatrix,'useFrameDurations') && p.condMatrix.useFrameDurations
+            p.trial.(sn).scaleDur = p.trial.display.ifi;
+        else
+            p.trial.(sn).scaleDur = 1;
+        end
+        
+        if p.trial.(sn).waitForGo
+            switch p.trial.(sn).waitForGo
+                case 1
+                    p.trial.(sn).goPrompt = sprintf(['To initiate trial:\n', ...
+                        '\tFixate target\n', ...
+                        '\t\t--OR--\n', ...
+                        '\tPress  [%s]  key\n'], ...
+                        KbName(p.trial.(sn).goSignal));
+                case 2
+                    p.trial.(sn).goPrompt = sprintf(['To initiate trial:\n', ...
+                        '    Fixate target\n', ...
+                        '        --AND--\n', ...
+                        '    Press  [%s]  key\n'], ...
+                        KbName(p.trial.(sn).goSignal));
+            end
+            
+            if isprop(p, 'condMatrix')
+                p.condMatrix.H.userPromptStr = p.trial.(sn).goPrompt;
+            end
+        else
+            p.trial.(sn).goPrompt = '';
+        end
+        if ~isempty(p.trial.(sn).goPrompt)
+            fprintLineBreak('-');
+            fprintf(p.trial.(sn).goPrompt);
+            fprintLineBreak('-');
+        end
+        
+    end %postOpenScreen
 
 
 %% initParams
-function initParams(p, sn)
-% setup defaults
-dstates = struct(...
-    'WAITFIX',  1,...
-    'HOLDFIX',  2,...
-    'STIMULUS', 3,...
-    'RESPONSE', 4,...
-    'END',      5,...
-    'BREAKFIX', 6);
-
-def = struct(...
-     'states',   dstates ...
-    ,'nstates',  numel(fieldnames(dstates)) ...
-    ,'goSignal', KbName('RightShift') ...
-    ,'waitForGo', 0 ...     % see WAITFIX state for logic
-    ,'waitForResp', 0 ...   % see RESPONSE state for logic
-    ,'hasResponse', false ...
-    ,'success', nan ...
-    ,'stateDur', [nan, 0.24, 3, nan] ...
-    );
-
-% "pldaps requestedStates" for this module
-% - done here so that modifications only needbe made once, not everywhere this module is used
-rsNames = {'frameUpdate', ...
-    'trialSetup','trialCleanUpandSave', ...
-    'experimentPreOpenScreen','experimentPostOpenScreen'};
+    function initParams(p, sn)
+        % setup defaults
+        dstates = struct(...
+            'WAITFIX',  1,...
+            'HOLDFIX',  2,...
+            'STIMULUS', 3,...
+            'RESPONSE', 4,...
+            'END',      5,...
+            'BREAKFIX', 6);
         
-% make it so
-p.trial.(sn) = pds.applyDefaults(p.trial.(sn), def);
-p = pldapsModuleSetStates(p, sn, rsNames);
-
-% backwards compatibility (...use updated [.waitForGo] logic instead)
-if isfield(p.trial.(sn),'waitForGoSignal')
-    p.trial.(sn).waitForGo = 2*p.trial.(sn).waitForGoSignal;
-end
-
-end %initParams
+        def = struct(...
+            'states',   dstates ...
+            ,'nstates',  numel(fieldnames(dstates)) ...
+            ,'goSignal', KbName('RightShift') ...
+            ,'goPrompt', '' ...     % text string prompting user to begin trial
+            ,'waitForGo', 0 ...     % see WAITFIX state for logic
+            ,'waitForResp', 0 ...   % see RESPONSE state for logic
+            ,'hasResponse', false ...
+            ,'success', nan ...
+            ,'stateDur', [nan, 0.24, 3, nan] ...
+            );
+        
+        % "pldaps requestedStates" for this module
+        % - done here so that modifications only needbe made once, not everywhere this module is used
+        rsNames = {'frameUpdate', ...
+            'trialSetup','trialCleanUpandSave', ...
+            'experimentPreOpenScreen','experimentPostOpenScreen'};
+        
+        % make it so
+        p.trial.(sn) = pds.applyDefaults(p.trial.(sn), def);
+        p = pldapsModuleSetStates(p, sn, rsNames);
+        
+        % backwards compatibility (...use updated [.waitForGo] logic instead)
+        if isfield(p.trial.(sn),'waitForGoSignal')
+            p.trial.(sn).waitForGo = 2*p.trial.(sn).waitForGoSignal;
+        end
+        
+    end %initParams
 
 
 %% initModules
-function initModules(p, theseModules)
-
-    for i = 1:length(theseModules)
-        mN = theseModules{i};
-        p.trial.(mN).shown = false;
-    end
-end %initModules
+    function initModules(p, theseModules)
+        
+        for i = 1:length(theseModules)
+            mN = theseModules{i};
+            p.trial.(mN).shown = false;
+        end
+    end %initModules
 
 
 end %main function
