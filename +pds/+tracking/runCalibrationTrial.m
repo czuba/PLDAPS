@@ -67,6 +67,13 @@ switch state
         % setup run params in PLDAPS struct
         initParams(p, sn);
         
+        if isfield(p.trial.tracking, 'targetXYZdeg') && ~isempty(p.trial.tracking.targetXYZdeg)
+            % user defined target XYZ locations
+            % - x & y in visual degrees
+            % - z in cm relative to viewdist  (i.e. target will be presented at [viewdist+z] cm from observer)
+            p.static.tracking.targetXYZdeg = p.trial.tracking.targetXYZdeg;
+        end
+        
         %--------------------------------------------------------------------------
         % TRIAL STATES        
     case p.trial.pldaps.trialStates.trialSetup
@@ -77,6 +84,13 @@ switch state
             
             if ~isfield(p.trial.tracking, 't0') || isempty(p.trial.tracking.t0)
                 p.trial.tracking.t0 = p.static.tracking.tform;
+            end
+            
+            if isfield(p.trial.tracking, 'targetXYZdeg') && ~isempty(p.trial.tracking.targetXYZdeg)
+                % user defined target XYZ locations
+                % - x & y in visual degrees
+                % - z in cm relative to viewdist  (i.e. target will be presented at [viewdist+z] cm from observer)
+                p.static.tracking.targetXYZdeg = p.trial.tracking.targetXYZdeg;
             end
             
             % Don't double-draw eyepos (this will revert itself)
@@ -613,6 +627,13 @@ end %state switch block
             fprintf(2, '~!~\tNo fixation logged; targets currently HIDDEN from subject\n~!~\t-- Press [zero] to toggle visibility\n');
         
         else
+            if any(abs(p.trial.tracking.posRaw(:)) > 2^14)
+                % Eyelink reports eye position of -2^15 (?...find exact value from Eyelink) during blink or lost track
+                % - unk. if other trackers do similar (check TrackPixx)
+                % - exclude these values by default
+                fprintf(2,'~!~\tNo fixation logged; datapoint aborted for error detection. (raw value exceeded predefined limit 2^14)\n')
+                return
+            end
             p.static.tracking.thisFix = p.static.tracking.thisFix + 1;
             for i = srcIdx
                 % Keep target & eye values together using complex numbers:  target == real(xyz), eye == imag(xyz)
@@ -625,7 +646,7 @@ end %state switch block
                     1i.*[p.trial.tracking.posRaw(:,min([i,end])); p.static.display.viewdist]; % Measured eye position in imaginary component
                 
             end
-                fprintf('.')
+            fprintf('.')
         end
     end %logFixation
 
