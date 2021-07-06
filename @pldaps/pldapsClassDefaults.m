@@ -99,7 +99,7 @@ s.	datapixx.	GetPreciseTime.	maxDuration = 0.1; % sec
 %s.	git.
  s.	git.	use = true;
  s. git.    pldaps.         mainFxn = 'pldaps.m';
- s. git.    huklabbasics.   mainFxn = [];
+ s. git.    huklabBasics.   mainFxn = [];
  
 %s. keyboard.
  s. keyboard.   devIdx = -1; % PTB default to first keyboard detected

@@ -192,8 +192,10 @@ if isfield(p.trial.display, 'gamma')
     end
 else
     % Set 'ClampOnly' color mode (default for Bits++, and rec for ProPixx(?))
+    %     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'LookupTable');
+    % ...unclear if [dummy] lookup table is necessary/functional in any way
+    % (legacy Datapixx overlay functionality, perhaps?)
     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
-    end
 end
 
 % Functional modifications to PsychImaging prior to PTB screen creation
@@ -527,9 +529,10 @@ if isfield(p.trial.display, 'gamma')
     end
 else
     % do nothing, direct pass through to device while allowing PTB to 'ClampOnly' by default
-    fprintf('No luminance/color linearization to apply\n');
-    %     %set a linear gamma
-    %     PsychColorCorrection('SetLookupTable', ptr, linspace(0,1,p.trial.display.info.realBitDepth)'*[1, 1, 1], 'FinalFormatting');
+    %     fprintf('No luminance/color linearization to apply\n');
+    % ...unclear if [dummy] lookup table is necessary/functional in anyway (legacy Datapixx overlay functionality, perhaps?)
+        % Set a linear gamma
+        % PsychColorCorrection('SetLookupTable', ptr, linspace(0,1,p.trial.display.info.realBitDepth)'*[1, 1, 1], 'FinalFormatting');
 end
 
 % % This seems redundant. Is it necessary?

@@ -66,7 +66,7 @@ switch state
     case p.trial.pldaps.trialStates.trialSetup
         % init timing & behavioral state variables (beginning with WAITFIX),
         % and check that appropriate modules are active at start of trial
-        trialSetup(p, sn);
+        trialSetup;%(p, sn);
         
         
     case p.trial.pldaps.trialStates.trialCleanUpandSave
@@ -126,24 +126,6 @@ return
             end
         end
 
-        switch p.trial.(sn).waitForGo
-            case 0
-                % advance when fixation acquired (isheld==true)
-                go = isheld;
-            case 1
-                % % advance when fixation acquired (isheld==true) OR designated goSignal detected
-                go = isheld || goSignal;
-            case 2
-                % advance when fixation acquired (isheld==true) AND designated goSignal detected
-                go = isheld && goSignal;
-            otherwise
-                go = false;
-        end
-
-        if go
-            % Fixation conditions met, move on!
-            setStateStart(p,sn, p.trial.(sn).states.HOLDFIX)
-        end
         p.trial.(sn).stateDur(3) = maxDur;
         
     end %trialSetup

@@ -546,12 +546,12 @@ methods
             
             % EXPT STATUS AXES
             % trial count text
-            cm.H.infoFig.Children(1).Children(end).String = sprintf('Trial:  %5d\nPass:  %5d  (%02.1f%%)', p.trial.pldaps.iTrial, cm.iPass, pctRemain);  % cm.i/numel(cm.order)*100);
+            cm.H.exptStatusAx.Children(end).String = sprintf('Trial:  %5d\nPass:  %5d  (%02.1f%%)', p.trial.pldaps.iTrial, cm.iPass, pctRemain);  % cm.i/numel(cm.order)*100);
             % dropped frame count
-            cm.H.infoFig.Children(1).Children(end-1).String = dropCountString;
+            cm.H.exptStatusAx.Children(end-1).String = dropCountString;
 
             % fixation text
-            cm.H.infoFig.Children(1).Children(end-2).String = sprintf('Fix Pos:    %s\nFix Lim:    %s',...
+            cm.H.exptStatusAx.Children(end-2).String = sprintf('Fix Pos:    %s\nFix Lim:    %s',...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixPos),...
                     mat2str(p.trial.(p.trial.pldaps.modNames.currentFix{1}).fixLim));
                 
@@ -569,7 +569,7 @@ methods
             end
                 
                 
-            refreshdata(cm.H.infoFig);%.Children(1));
+            refreshdata(cm.H.infoFig);
             
         else
             % Info figure
