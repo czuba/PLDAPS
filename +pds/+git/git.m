@@ -1,4 +1,6 @@
-function result = git(varargin)
+function [result, err] = git(varargin)
+% function [result, err] = git(varargin)
+% 
 % A thin MATLAB wrapper for Git.
 % 
 %   Short instructions:
@@ -51,23 +53,26 @@ function result = git(varargin)
 %
 % v0.4,     20 November 2013-- TN: Searching for git in default directories,
 %                               returning results as variable
+% 2020-04-06  TBC   include optional second [err] status output
+%                   trim trailing newline char by default
 % 
 % Contributors: (MR) Manu Raghavan
 %               (TH) Timothy Hansell
 %               (TN) Tassos Natsakis
+% 
 
 gitlocation='git ';
 
 % Test to see if git is installed
-[status,~] = system([gitlocation '--version']);
-% if git is in the path this will return a status of 0
+[err,~] = system([gitlocation '--version']);
+% if git is in the path this will return an err of 0
 % it will return a 1 only if the command is not found
-if status
+if err
     gitlocation = [GetGitPath gitlocation];
-    [status,~] = system([gitlocation '--version']);
+    [err,~] = system([gitlocation '--version']);
 end
 
-    if status
+    if err
         % Checking if git exists in the default installation folders (for
         % Windows)
         if ispc
@@ -79,7 +84,7 @@ end
         end
         
         if (search||searchx86)
-            % If git exists but the status is 0, then it means that it is
+            % If git exists but err is 0, then it means that it is
             % not in the path.
             result = 'git is not included in the path';            
         else
@@ -95,7 +100,12 @@ end
         else
           prog = ' | cat';
         end
-        [~,result] = system([gitlocation,arguments,prog]);
+        [err, result] = system([gitlocation,arguments,prog]);
+    end
+    
+    % trim trailing newline character
+    if ~isempty(result) && strcmp(result(end), sprintf('\n'))
+        result = result(1:end-1);
     end
 end
 

@@ -185,14 +185,15 @@ end
 %% Color correction
 % Must be initialized before PTB screen opened, correction parameters are loaded/applied below
 if isfield(p.trial.display, 'gamma')
-    if isField(p.trial.display.gamma, 'power')
+    if isfield(p.trial.display.gamma, 'power') && ~isempty(p.trial.display.gamma.power)
         PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
-    else
+    elseif isfield(p.trial.display.gamma, 'table') && ~isempty(p.trial.display.gamma.table)
         PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'LookupTable');
     end
 else
     % Set 'ClampOnly' color mode (default for Bits++, and rec for ProPixx(?))
     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
+    end
 end
 
 % Functional modifications to PsychImaging prior to PTB screen creation
@@ -215,12 +216,11 @@ if ~isempty(p.trial.display.preOpenScreenFxn)
 end
 
 
-%% PTB 'OpenWindow'
-%  - Open double-buffered onscreen window with the requested stereo mode
-disp('****************************************************************')
+%% Open double-buffered onscreen window with the requested stereo mode
+fprintLineBreak
 fprintf('Opening screen %d with background %s in stereo mode %d\r', ...
         p.trial.display.scrnNum, mat2str(p.trial.display.bgColor), p.trial.display.stereoMode)
-disp('****************************************************************')
+fprintLineBreak('-')
 
 [ptr, winRect] = PsychImaging('OpenWindow', p.trial.display.scrnNum, p.trial.display.bgColor, p.trial.display.screenSize, [], [], p.trial.display.stereoMode, p.trial.display.multisample);
 p.trial.display.ptr = ptr;
@@ -353,6 +353,7 @@ Screen('TextStyle',p.trial.display.ptr,1);
 
 
 %% Overlay selection & creation
+fprintLineBreak;
 if p.trial.display.useOverlay==1
     %% 'Standard' PLDAPS Overlay creation
     % Prevent text antialiasing from causing overlay to bleed over into subject display
@@ -390,8 +391,12 @@ if p.trial.display.useOverlay==1
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
 
         end
+        
+        fprintf('Standard PLDAPS Overlay enabled & implemented via Datapixx box\n')
+        
     else
-        warning('pldaps:openScreen', 'Datapixx Overlay requested but datapixx disabled. No Dual head overlay availiable!')
+        % common scenario (esp. during development), and not worthy of issuing a full 'warning' message
+        fprintf('Standard PLDAPS Overlay requested, but Datapixx disabled (.datapixx.use==0)\nOverlay will be rendered on subject display instead.\n')
         p.trial.display.overlayptr = p.trial.display.ptr;
         
     end
@@ -415,9 +420,6 @@ elseif p.trial.display.useOverlay==2
             shSrc = sprintf('uniform sampler2DRect overlayImage; float getMonoOverlayIndex(vec2 pos) { return(texture2DRect(overlayImage, pos * vec2(%f, %f)).r); }', sampleX, sampleY);
 
     % if using a software overlay, the window size needs to [already] be halved.
-    disp('****************************************************************')
-    disp('Using software overlay window')
-    disp('****************************************************************')
 	oldColRange = Screen('ColorRange', p.trial.display.ptr, 255);
     p.trial.display.overlayptr=Screen('OpenOffscreenWindow', p.trial.display.ptr, 0, [0 0 p.trial.display.widthPx p.trial.display.heightPx], 8, 32);
     % Put stimulus color range back how it was
@@ -491,21 +493,20 @@ elseif p.trial.display.useOverlay==2
     Screen('HookFunction', p.trial.display.ptr, 'Reset', 'FinalOutputFormattingBlit');
     Screen('HookFunction', p.trial.display.ptr, 'AppendShader', 'FinalOutputFormattingBlit', idString, p.trial.display.shader, pString);
     PsychColorCorrection('ApplyPostGLSLLinkSetup', p.trial.display.ptr, 'FinalFormatting');
+    
+	fprintf('Software PLDAPS Overlay enabled & implemented via OpenGL shaders\n')
 else
+    fprintf('No PLDAPS Overlay selected (.display.useOverlay==%d)\n', p.trial.display.useOverlay);
     p.trial.display.overlayptr = p.trial.display.ptr;
 end
 
 
 %% Apply display calibration (e.g. gamma encoding or lookup table)
-if isField(p.trial, 'display.gamma')
-    % disp('****************************************************************')
+if isfield(p.trial.display, 'gamma') 
     fprintLineBreak
-    fprintf('Applying display color correction ');
-    if isfield(p.trial.display.gamma, 'table')
-        fprintf('via lookup table\n');
-        PsychColorCorrection('SetLookupTable', p.trial.display.ptr, p.trial.display.gamma.table, 'FinalFormatting');
-    elseif isfield(p.trial.display.gamma, 'power')
-        fprintf('via gamma power %3.3f\n', p.trial.display.gamma.power);
+    if isfield(p.trial.display.gamma, 'power') && ~isempty(p.trial.display.gamma.power)
+        % allow .power correction to take precident
+        fprintf('Applying display color correction via gamma power %3.3f\n', p.trial.display.gamma.power);
         PsychColorCorrection('SetEncodingGamma', p.trial.display.ptr, p.trial.display.gamma.power, 'FinalFormatting');
         % Extended gamma parameters
         if all( isfield(p.trial.display.gamma, {'bias', 'minL', 'maxL', 'gain'}) )
@@ -515,17 +516,25 @@ if isField(p.trial, 'display.gamma')
             gain=p.trial.display.gamma.gain;
             PsychColorCorrection('SetExtendedGammaParameters', p.trial.display.ptr, minL, maxL, gain, bias);
         end
+        
+    elseif isfield(p.trial.display.gamma, 'table') && ~isempty(p.trial.display.gamma.table)
+        % [old] direct lookup table approach
+        fprintf('Applying display color correction via lookup table\n');
+        PsychColorCorrection('SetLookupTable', p.trial.display.ptr, p.trial.display.gamma.table, 'FinalFormatting');
+        
+    else
+        fprintf('No luminance/color linearization to apply\n');    
     end
 else
     % do nothing, direct pass through to device while allowing PTB to 'ClampOnly' by default
-
+    fprintf('No luminance/color linearization to apply\n');
+    %     %set a linear gamma
+    %     PsychColorCorrection('SetLookupTable', ptr, linspace(0,1,p.trial.display.info.realBitDepth)'*[1, 1, 1], 'FinalFormatting');
 end
 
 % % This seems redundant. Is it necessary?
 if p.trial.display.colorclamp == 1
-    %disp('****************************************************************')
-    disp('clamping color range [0:1]')
-    %disp('****************************************************************')
+    fprintf('clamping color range [0:1]\n')
     Screen('ColorRange', p.trial.display.ptr, 1, 0);
 end
 
@@ -569,9 +578,8 @@ end
 %% Setup OpenGL blend functions
 %   --  e.g. for smooth (anti-aliased) dot rendering, use alpha-blending:
 %       Screen('BlendFunction', p.trial.display.ptr, 'GL_SRC_ALPHA','GL_ONE_MINUS_SRC_ALPHA');
-disp('****************************************************************')
+fprintLineBreak
 fprintf('Setting Blend Function to %s,%s\r', p.trial.display.sourceFactorNew, p.trial.display.destinationFactorNew);
-disp('****************************************************************')
 Screen('BlendFunction', p.trial.display.ptr, p.trial.display.sourceFactorNew, p.trial.display.destinationFactorNew);  % alpha blending for anti-aliased dots
 
 if p.trial.display.forceLinearGamma %does't really belong here, but need it before the first flip....

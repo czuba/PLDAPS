@@ -233,7 +233,7 @@ methods(Static)
     
     [xy,z] = deg2world(p, varargin);%(p,xy,z)
     
-    held = checkFixation(varargin)
+    [held, dist] = checkFixation(varargin);
     
     % Shorthand reward adjustments
     moreReward(varargin) % default up by 10%

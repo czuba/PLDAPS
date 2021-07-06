@@ -1,7 +1,12 @@
-function [p] = doRfPos_gabGrid(subj, stimMode, viewdist)
-% function [p] = modularDemo.doRfPos_gabGrid(subj, stimMode, viewdist)
+function [p] = doGaborSteeringExample(subj, stimMode, viewdist)
+% function [p] = yourPackage.doExperimentTemplate(subj, stimMode, viewdist)
 % 
-% Tutorial code for modular PLDAPS experimental design
+% Example for modular PLDAPS experimental design
+% - based on modularDemo.doRfPos_gabGrid
+% - "do" in filename is convention for PLDAPS experiment wrapper file that one would call
+%   from the command window to run an experiment
+%   e.g.  >> p = modularDemo.doRfPos_gabGrid("me", "gabors", 70);
+% - 
 % 
 % INPUTS:
 %   [subj]      Subject/session identifier  ("string", default: "test")
@@ -59,13 +64,16 @@ end
 
 pss.pldaps.pause.preExperiment = 0;
 
-% 
+% play sound as/with reward feedback
+pss.sound.use = 1;
+
+
 % TUTORIAL TIP:
 %   When learning/debugging PLDAPS, its helpful to set debug points inside your
 %   modules so that you can examine how elements of your experiment operate/interact.
 %   Overriding the default pldaps.trialMasterFunction ('runModularTrial') with the
 %   following line:
-pss.pldaps.trialMasterFunction = 'runModularTrial_frameLock';
+% pss.pldaps.trialMasterFunction = 'runModularTrial_frameLock';
 %   will allow you to manually step through your code without trial time elapsing.
 %   -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 %   -----DO NOT use the  _frameLock  variant in your normal experiments!--------------
@@ -80,7 +88,7 @@ pss.newEraSyringePump.use = false;
 pss.newEraSyringePump.refillVol = 40;
 pss.behavior.reward.defaultAmount = 0.16;
 
-fixRadius = 3; %[deg], applied to fixation module below
+fixRadius = 1; %[deg], applied to fixation module below
 
 
 %% Eyepos & Eyelink
@@ -95,8 +103,8 @@ pss.pldaps.draw.eyepos.use = true;
 %% Module inventory:
 % -100: pldaps default trial function
 %  1:   fixation
-%  2:    base timing module
-%  10:   gabor stim drawing module
+%  2:   base timing module
+%  10:  gabor stim drawing module
 
 
 %% display settings
@@ -125,10 +133,10 @@ pss.(sn) =  pldapsModule('modName',sn, 'name','modularDemo.pmFixDot', 'order',1)
 
 pss.(sn).use = true;
 pss.(sn).on = true;
-pss.(sn).mode = 2;          % eye position limit mode (0==pass/none, 1==square, 2==circle[euclidean]);  mode==2 strongly recommended;
+pss.(sn).mode = 0;          % eye position limit mode (0==pass/none, 1==square, 2==circle[euclidean]);  mode==2 strongly recommended;
 pss.(sn).fixPos = [0 0];    % fixation xy in vis.deg, z in cm;    %NOTE: Recommended to leave z-position empty to ensure fixation is always rendered at current .display.viewdist
 pss.(sn).fixLim = fixRadius*[1 1]; % fixation window limits (x,y)  % (visual degrees; if isscalar, y==x; if mode==2, radius limit; if mode==1, box half-width limit;)
-pss.(sn).dotType = 5;      % 2 = classic PTB anti-aliased dot, 3:9 = geodesic sphere (Linux-only), 10:22 3D sphere (mercator; slow) (see help text from pmFixDot module for info on extended dotTypes available)
+pss.(sn).dotType = 12;      % 2 = classic PTB anti-aliased dot, 3:9 = geodesic sphere (Linux-only), 10:22 3D sphere (mercator; slow) (see help text from pmFixDot module for info on extended dotTypes available)
 if pss.(sn).dotType <=2
     % pixels if classic PTB fixation dot
     pss.(sn).dotSz = 5; 
@@ -144,126 +152,88 @@ pss.pldaps.modNames.currentFix = {sn};
 
 %% (2) base trial timing & behavioral control module
 sn = 'pmBase';
-pss.(sn) =  pldapsModule('modName',sn, 'name','modularDemo.pmBase', 'order',2);
+pss.(sn) =  pldapsModule('modName',sn, 'name','templates.pmTemplate_track2fix', 'order',2);
 
 stimDur = 3.6;
 pss.(sn).stateDur = [NaN, 0.24, stimDur, NaN];
 
-
-%% (10) drifting gabor module:  glDraw.pmMatrixGabs.m
-
-% Grid sample resolution in xy dimension
-gridN   = 4*[1 1]; % 7*[1 1];    %
-
-switch stimMode
-    case 'gabors'
-        
-        % Base params field (non-module) stores params shared across all matrixModule instances
-        sn = 'gabors';
-        
-        if 1 % smaller grid
-
-            % @ 5x5
-            pss.(sn).stimCtr = [7, -5, 0]; % [x, y, zOffsetFromFixation]
-            pss.(sn).gridSz  = 10 *[1 1];
-
-%             % @ 7x7
-%             pss.(sn).stimCtr = [6, 7, 0]; % [x, y, zOffsetFromFixation]
-%             pss.(sn).gridSz  = 10 *[1 1];
-            
-        else % searching grid   
-            % FULL Right hemifield w/ ipsillateral column
-%             % @ 7x7
-%             pss.(sn).stimCtr = [17, 2.5, 0]; % [x, y, zOffsetFromFixation]
-%             pss.(sn).gridSz  = [40,35];  %35 *[1 1];
-            
-%           % MID-SIZED Lower Right hemifield w/ ipsillateral column
-            % @ 7x7
-            pss.(sn).stimCtr = [14.5, 7.5, 0]; % [x, y, zOffsetFromFixation]
-            pss.(sn).gridSz  = [35,30];  %35 *[1 1];
-            
-%             % @ 9x9
-%             pss.(sn).stimCtr = [15, 8.3, 0]; % [x, y, zOffsetFromFixation]
-%             pss.(sn).gridSz  = [35,30];  %35 *[1 1];
-                        
-        end
-        
-        pss.(sn).gabTf = 3;
-        % Gabor size: scale consistent with grid spacing
-        % - set with full-width half-max parameter for best interperability
-        pss.(sn).gabFwhm = max(pss.(sn).gridSz(1:2)./(gridN-1)) * 0.8;
-        
-        % overlay markers & mouse tracking
-        pss.(sn).drawMarkers = true;
-        pss.(sn).trackMouse = false; % no mouse tracking for RfPos stim
-        pss.(sn).centerOnScreen = true;
-        
-        % *** Total stimulus duration [stimDur] set during pmBase module setup above ***
-        
-        tmpModule = pldapsModule('modName',sn, 'name','modularDemo.pmMatrixGabs', 'matrixModule',true, 'order',10);
-            %'requestedStates', {'frameUpdate', 'framePrepareDrawing', 'frameDraw', 'trialPrepare', 'trialCleanUpandSave', 'experimentPreOpenScreen', 'experimentPostOpenScreen', 'experimentCleanUp'});
-        
-        % adjustments & defaults
-        tmpModule.use = true;
-        tmpModule.on = false;
-        tmpModule.centerOnScreen = pss.(sn).centerOnScreen;
-        
-        % Populate shared stimulus parameters 
-        tmpModule.gabContrast = 1;
-        tmpModule.ngabors = 1;
-        tmpModule.gabTf = pss.(sn).gabTf; % drift rate (Hz)
-        tmpModule.gabFwhm = pss.(sn).gabFwhm;
-        tmpModule.gabSf = 1.3/tmpModule.gabFwhm;    % V1 median bandwidth= ~1.4 (== 1.0/fwhm) --De Valois 1982
-        
-        % NOTE: pmMatrixGabs accepts & converts between various size params (FWHM recommended):
-        %   .gabFwhm    % Full-width half-max (deg)
-        %   .gabSd      % Standard deviation of gaussian hull (deg);    % gabFwhm == gabSd * sqrt(8*log(2));
-        %   .gabSize    % Size of texture support rect (deg);           % 8-bit gabor==7*gabSd;
-
-        % Parameters to be updated by condMatrix prior to each trial
-        tmpModule.pos = zeros(2, tmpModule.ngabors);    
-        tmpModule.dir = zeros(1, tmpModule.ngabors);
-        
-        % select module stimulus type
-        tmpModule.type = 'cartGrid';    %'polarTrack';
-
-        
-        % Stimulus onset timing & n-reps per trial
-        ncopies = 12;
-        tmpModule.isi = .0;
-        
-        stimModuleDur = stimDur/ncopies;
-        
-        % Report to command window
-        fprintLineBreak;
-        sr = 1000;
-        fprintf('\t~~~\tstimDur: %3.2fms,  isi: %3.2fms  ...x%d== %2.2fs total\n', (stimModuleDur-tmpModule.isi)*sr, tmpModule.isi*sr, ncopies, stimDur);
-        fprintLineBreak;
-        
-    otherwise
-        error('Unrecognized stimMode requested.')
-        
-end
+pss.(sn).waitForGo = 2;     % wait for button press (right shift key) before beginning trial stimulus presentation
+pss.(sn).waitForResp = 1; % wait for (.hasResponse == true) || (.stateDur time expired)
 
 
-% --- MATRIX MODULE SETUP ---
-% Create duplicate/indexed stim modules for each repetition w/in a trial
-%   - TODO: this eventually needs to be functionified, ala pldapsModule.m  --TBC
-% 
-matrixModNames = {};
-for i = 1:ncopies
-    mN = sprintf('%s%0.2d', sn, i);
-    pss.(mN) = tmpModule;
-    pss.(mN).stateFunction.modName = mN;
-    pss.(mN).stateFunction.matrixModule = true;
-    % timing: each module [onset, offset] time in sec (relative to STIMULUS state start)
-    basedur = (i-1)*stimModuleDur;
-    pss.(mN).modOnDur = [0, stimModuleDur-tmpModule.isi] +basedur; % subtract isi from offset
-    % module names [for local use]
-    matrixModNames{i} = mN;
-end
+%% (10) drifting gabor module:  templates.pmTemplate_matrixModuleGabor.m
+
+    %% Initialization
+    % Initialize matrixModule(s) inside your "do" experiment wrapper by first setting up
+    % [sn] as a normal struct field of your PLDAPS settings struct [pss]:
+
+    %% Setup shared matrixModule parameters & components
+    sn = 'gabors';
+
+    % Base params field (non-module) stores params shared across all matrixModule instances
+    pss.(sn).stimCtr = [0, 0, 0]; % stimulus center location; visual degrees
+    % - The .stimPos of stimuli in each matrixModule will be relative to this common center location
+    pss.(sn).gabTf = 3; % gabor temporal frequency
+    pss.(sn).gabFwhm = 2; % full-width half-max size of each gabor (visual degrees)
+
+    pss.(sn).centerOnScreen = true; % flag to use procedural gabor creation that has it's origin at screen center (rather than upper left corner)
+    pss.(sn).trackMouse = 1;        
+    pss.(sn).stimOffset = [0 0];
+
+    % Create a temporary module that will be used to create each of your matrixModules
+    tmpModule = pldapsModule('modName',sn, 'name','templates.pmTemplate_matrixModuleGabor', 'matrixModule',true, 'order',10); 
+
+    % Apply any adjustments or defaults necessary in the matrixModule
+    tmpModule.use = true;   % whether or not PLDAPS state machine should use the module when iterating through experiment states
+                            % - important during basic initializaiton states like .experimentPreOpenScreen, 
+    tmpModule.on = false;   % whether or not the module should be seen by your behavioral state machine (see modularDemo.pmBase.m)
+  
+    % Populate shared stimulus parameters 
+    tmpModule.gabContrast = 1;
+    tmpModule.ngabors = 1;
+    % Some parameters are direclty copied over from the stimulus struct:
+    % - NOTE that its just .(sn) during setup, but within the module code this shared location will become .(snBase)
+    tmpModule.centerOnScreen = pss.(sn).centerOnScreen;
+    tmpModule.gabTf = pss.(sn).gabTf; % drift rate (Hz)
+    tmpModule.gabFwhm = pss.(sn).gabFwhm;
+    tmpModule.gabSf = 1.3/tmpModule.gabFwhm;    % V1 median bandwidth= ~1.4 (== 1.0/fwhm) --De Valois 1982
+
+    % Initialize parameters to be updated by condMatrix prior to each trial
+    tmpModule.pos = zeros(2, tmpModule.ngabors); % [x,y] position of stimulus; visual degrees **relative to .stimCenter** (see code below)
+    tmpModule.dir = zeros(1, tmpModule.ngabors);
+    
+    % %     % Select module stimulus type
+    % %     % - Not necessary, but sometimes useful to have multiple 'flavors' of a particular module
+    % %     % - Makes experiment code more robust/universal
+    % %     % - Biggest benefit is ability to use common analysis code across experiments with the same general stimulus elements (i.e. gabors, dots, etc)
+    % %     tmpModule.type = 'steerX';    %'polarTrack';
+    
+    % Stimulus onset timing & n-reps per trial
+    ncopies = 1;
+    tmpModule.isi = .0; % blank interstimulus interval between each matrix module
+    % stimDur==total "stimulus on" duration within the trial
+    % - should be setup while initializing your behavioral module (e.g. modularDemo.pmBase.m)
+    stimModuleDur = stimDur/ncopies;
 
 
+    %% Create matrixModules
+    % Make duplicate/indexed stim modules for each repetition w/in a trial
+    matrixModNames = {};
+    for i = 1:ncopies
+        mN = sprintf('%s%0.2d', sn, i); % indexed module name
+        pss.(mN) = tmpModule;   % apply the temporary module
+        pss.(mN).stateFunction.modName = mN; % Update it's internalized name field
+        
+        % timing: each module [onset, offset] time in sec (relative to STIMULUS state start)
+        % - timing of matrixModule on/offset imposed w/in behavioral control module (e.g. modularDemo.pmBase)
+        basedur = (i-1)*stimModuleDur;
+        pss.(mN).modOnDur = [0, stimModuleDur-tmpModule.isi] +basedur; % subtract isi from offset
+
+        % Compile module names [for use later within experiment wrapper code (...if needed)]s
+        matrixModNames{i} = mN;
+    end
+
+    
 %% Create PLDAPS object for this experimental session
 p = pldaps(subj, pss);
 
@@ -281,22 +251,13 @@ do3d = p.trial.display.stereoMode>0;
 % Drift directions
 dinc = 90; % direction increment
 dirs = dinc:dinc:360; % motion directions
-if do3d
-    dirs = [dirs, 0,180]; % append TOWARD & AWAY (0 & 180, made bino below)
-end
 
-% Cartesian grid locations 
-% - [gridN]: number of samples in xy dimension is set during the matrixModule setup code
-% - grid center & span (.stimCtr & .gridSz) are parameters in gabor matrixModule base
-% - final locations are computed during execution of the matrix module(s):  pmMatrixGabs.m
-xs = linspace(-.5,.5, gridN(1));
-ys = linspace(-.5,.5, gridN(2));
+% starting stimulus location
+xs = [-8, 8];
+ys = [0];   %[-4, 4];
 
 % make a fully crossed matrix
 [xx, yy, dd] = ndgrid( xs, ys, dirs);
-
-% If stereo enabled, make last two dirs comprise opposite binocular motions
-is2d = numel(dd(:,:,1:end-2*do3d));
 
 
 % Create cell struct of module fields to be defined by each condition
@@ -312,10 +273,6 @@ for i = 1:numel(xx)
     c{i}.stimPos    = [ xx(i), yy(i)]; % stim position relative to center
     c{i}.dir    = dd(i) * ones(tmpModule.ngabors, 1+do3d); % separate dir for left & right eye
     
-    if i>is2d
-        % tweak 3D conditions for opposite direction
-        c{i}.dir(:,2) = c{i}.dir(:,2)+180;
-    end
 end
 
 
@@ -356,7 +313,7 @@ p.condMatrix.conditions = c;
 %                       (* here the 0 distinguishes it from simple randMode [3])
 %                       
 
-p.condMatrix = condMatrix(p, 'randMode',[1,2,3], 'nPasses',inf);
+p.condMatrix = condMatrix(p, 'randMode',1, 'nPasses',inf);
 % 
 % p.condMatrix = condMatrix(p, 'randMode',[2], 'nPasses',2);
 

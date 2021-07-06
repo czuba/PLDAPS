@@ -1,5 +1,5 @@
-function held = checkFixation(p, sn)
-% function held = checkFixation(p, sn)
+function [held, dists] = checkFixation(p, sn, xyPix)
+% function held = checkFixation(p, sn, xyPix)
 % 
 % Default fixation check modular PLDAPS
 % Uses pdist to compare pixel coordinates from:
@@ -35,7 +35,7 @@ function held = checkFixation(p, sn)
 held = true;
 
 if p.trial.mouse.useAsEyepos || p.trial.eyelink.useAsEyepos
-    if nargin<2
+    if nargin<2 || isempty(sn)
         try
             sn = p.trial.pldaps.modNames.currentFix{1};
         catch
@@ -43,7 +43,16 @@ if p.trial.mouse.useAsEyepos || p.trial.eyelink.useAsEyepos
         end
     end
     
-    switch p.trial.(sn).mode
+    if nargin<3
+        % use .eyeX & .eyeY as comparison pixel position(s) 
+        eyeXY = [ (p.trial.eyeX-p.trial.display.ctr(1)), -(p.trial.eyeY-p.trial.display.ctr(2)) ];
+        limMode = p.trial.(sn).mode;
+    else
+        eyeXY = xyPix;
+        limMode = 2; % always use circular limit window if [xyPix] input supplied
+    end
+    
+    switch limMode
         case 2
             % default to circle window limits as [radius, x/y ratio]
             limRat = p.trial.(sn).fixLimPx(:);
@@ -55,7 +64,6 @@ if p.trial.mouse.useAsEyepos || p.trial.eyelink.useAsEyepos
             
             fixXY = p.trial.(sn).fixPosPx(1:2);
             % calc eyeXY relative to center of screen
-            eyeXY = [ (p.trial.eyeX-p.trial.display.ctr(1)), -(p.trial.eyeY-p.trial.display.ctr(2)) ];
             dists = pdist2( fixXY, eyeXY, 'seuclidean', limRat);
             held = all(dists ...
                    <=  p.trial.(sn).fixLimPx(1));
@@ -72,9 +80,13 @@ if p.trial.mouse.useAsEyepos || p.trial.eyelink.useAsEyepos
             % calc eyeXY relative to center of screen
             eyeXY = [ (p.trial.eyeX-p.trial.display.ctr(1)), -(p.trial.eyeY-p.trial.display.ctr(2)) ];
             held = squarewindow(0, eyeXY - p.trial.(sn).fixPosPx, p.trial.(sn).fixLimPx(1), p.trial.(sn).fixLimPx(end));
+            dists = [];
     end
-    % Record in pldaps structure before returning
-    p.trial.(sn).isheld = held;
+    if nargin<3
+        % Record in pldaps structure before returning
+        % - only if no alternate input pixel positions supplied
+        p.trial.(sn).isheld = held;
+    end
 end
 
 end %main function

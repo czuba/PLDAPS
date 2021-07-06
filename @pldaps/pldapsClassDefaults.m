@@ -25,7 +25,7 @@ function s = pldapsClassDefaults(s)
  s.	datapixx.	enablePropixxCeilingMount = false;
  s.	datapixx.	enablePropixxRearProjection = false;
  s. datapixx.   rb3d = 0;
- s.	datapixx.	LogOnsetTimestampLevel = 0;
+ s.	datapixx.	LogOnsetTimestampLevel = 1; % 1==datapixx will log stimulus onset time for the first frame of each trial only (done in pldapsDefaultTrial.m)
  s.	datapixx.	use = true;
  s.	datapixx.	useAsEyepos = false;
  s.	datapixx.	useForReward = false;
@@ -44,10 +44,12 @@ function s = pldapsClassDefaults(s)
  s.	datapixx.	adc.	XEyeposChannel = [ ];
  s.	datapixx.	adc.	YEyeposChannel = [ ];
 
-%s.	datapixx.	GetPreciseTime.
- s.	datapixx.	GetPreciseTime.	maxDuration = 0.1; % sec
+%s.	datapixx.	GetPreciseTime. % determine proper values for your rig, read & run:  ./PLDAPS/testsuite/pldapsDatapixxSync.m)
+%                               % good values for NHB ViewDist rig1 (circa 2021):  .maxDuration = .004; .optMinwinThreshold = 0;
+s.	datapixx.	GetPreciseTime.	maxDuration = 0.1; % sec
  s.	datapixx.	GetPreciseTime.	optMinwinThreshold = 0.0003; % sec
  % s.datapixx.	GetPreciseTime.	syncmode = [ ]; % no longer used
+
 
 %s.	display.
  s.	display.	bgColor = [ 0.5000    0.5000    0.5000 ];
@@ -96,6 +98,8 @@ function s = pldapsClassDefaults(s)
 
 %s.	git.
  s.	git.	use = true;
+ s. git.    pldaps.         mainFxn = 'pldaps.m';
+ s. git.    huklabbasics.   mainFxn = [];
  
 %s. keyboard.
  s. keyboard.   devIdx = -1; % PTB default to first keyboard detected

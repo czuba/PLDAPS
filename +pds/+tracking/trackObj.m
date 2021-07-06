@@ -28,6 +28,10 @@ classdef trackObj < handle
         srcIdx
         targets             % calibration [fixation] target struct
                             % initialized with deg2pix conversions upon creation
+                            
+        % place for user defined target locations (x,y,z) in vis degrees
+        targetXYZdeg = []
+        
     end
     properties (Hidden, Transient)
         % Only allow handle to display object to be set during initial object construction
@@ -179,23 +183,29 @@ classdef trackObj < handle
             %
             targets = struct();
             
-            halfWidth_x = obj.gridSz(1)/2;
-            halfWidth_y = obj.gridSz(end)/2;
-            
-            % basic 9-point target grid (in degrees)
-            xx = -halfWidth_x:halfWidth_x:halfWidth_x;
-            yy = -halfWidth_y:halfWidth_y:halfWidth_y;
-            [xx, yy] = meshgrid(xx, yy);
-            % arrange first 9 to match numpad
-            xy = sortrows([xx(:),yy(:)], [-2,1]);
-            if 1
-                % add inner target points
-                [x2, y2] = meshgrid( halfWidth_x/2*[-1 1], halfWidth_y/2*[1 -1]);
-                xy = [xy; [x2(:), y2(:)]];
+            if isempty(obj.targetXYZdeg)
+                
+                
+                halfWidth_x = obj.gridSz(1)/2;
+                halfWidth_y = obj.gridSz(end)/2;
+                
+                % basic 9-point target grid (in degrees)
+                xx = -halfWidth_x:halfWidth_x:halfWidth_x;
+                yy = -halfWidth_y:halfWidth_y:halfWidth_y;
+                [xx, yy] = meshgrid(xx, yy);
+                % arrange first 9 to match numpad
+                xy = sortrows([xx(:),yy(:)], [-2,1]);
+                if 1
+                    % add inner target points
+                    [x2, y2] = meshgrid( halfWidth_x/2*[-1 1], halfWidth_y/2*[1 -1]);
+                    xy = [xy; [x2(:), y2(:)]];
+                end
+                zz = zeros(size(xy,1),1);
+                
+                targets.targPos = [xy, zz(:)]' ;
+            else
+                targets.targPos = obj.targetXYZdeg;
             end
-            zz = zeros(size(xy,1),1);
-            
-            targets.targPos = [xy, zz(:)]' ;
             % Target position in WORLD coordinates [CM]
             % add targPos to the viewDist baseline for final depth in world coordinates
             targets.targPos(3,:) = targets.targPos(3,:) + obj.display.viewdist;
