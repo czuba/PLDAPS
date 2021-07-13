@@ -706,16 +706,15 @@ p.trial.display = p.static.display.syncToTrialStruct(p.trial.display);
 % %                 p.trial.display.zFar];  % far clipping plane (cm)
 % %         end
 
-
-%---------------------------------------------------------------------%
 % Identify tracking source & setup calibration fields
 if p.trial.tracking.use
     pds.tracking.postOpenScreen(p);
 end
 
-
 end %experimentPostOpenScreen
 
+
+%---------------------------------------------------------------------%
 
 % % %     %% setupGLPerspective
 % % %     function setupGLPerspective(ds)

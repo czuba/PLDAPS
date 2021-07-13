@@ -102,7 +102,20 @@ classdef condMatrix < dynamicprops
 % 2018-xx-xx  TBC  Wrote it.
 % 2019-08-30  TBC  Commenting and [some] cleanup
 % 2020-12-08  TBC  Added [basic] block capibilities & ever more commenting/explanation
+% 2021-07-09  TBC  Improved initialization & expanded compatibility for multiple condMatrices
+%
+
+% ****************************************************************
+% Additional components/features/comments
 % 
+% On creation, condMatrix inherits a set of PLDAPS module names [.modNames] from [p.trial.pldaps.modNames]
+% - if [condMatrix.stimName] is defined when initialized (defaults to []),
+%   then the list of [.modNames.matrixModule] will be constrained to
+%   module names that contain the string(s) in .stimName
+% EXAMPLE:
+%   p.condMatrix = condMatrix(p, 'randMode', 0, 'nPasses',inf, 'stimName','myStimulus');
+%   then [p.condMatrix.modNames.matrixModule] will only include modules that contain 'myStimulus'
+%   in their module name (e.g. p.trial.myStimulus01)
 
 
 properties (Access = public)    
@@ -112,12 +125,13 @@ properties (Access = public)
     iPass       % index # of current pass
     nPasses     % [inf] end experiment after nPasses through condition matrix
     order       % set of condition indices for the current pass
-    condReps  % counter of fully presented condition indices
+    condReps    % counter of fully presented condition indices
     passSeed    %[sum(100*clock)] base for random seed:  rng(.passSeed + .iPass, 'twister')
     
     randMode    % [0] flag for randomization through condition matrix [.condMatrix.conds] (see: condMatrix.updateOrder method)
     baseIndex   % [1000] base index value used to distinguish condition index strobed words, and as matrixModule onset strobe(?)
 
+    stimName    % base name of matrixModules associated with this condMatrix (i.e. = {'snBase'} )
     modNames    % module names struct
     maxFrames   % max number of frames per trial
 
@@ -202,6 +216,7 @@ methods
         % Control interaciton/execution of condMatrix
         pp.addParameter('randMode', 0);
         pp.addParameter('baseIndex', 1000);
+        pp.addParameter('stimName', []); % base name of matrix modules
         pp.addParameter('useFrameDurations',false);
         pp.addParameter('iBlock', 0);
         pp.addParameter('blockModulo', 1);
@@ -227,7 +242,7 @@ methods
         end
         
         % record of matrix module names
-        cm.modNames  = p.trial.pldaps.modNames;
+        cm.modNames  = p.updateModNames(cm.stimName);
         cm.nModules = numel(cm.modNames.matrixModule);
         cm.padded = false(1,cm.nModules);
         
@@ -241,27 +256,7 @@ methods
         if isscalar(cm.randMode) && cm.randMode==3 && ndims(cm.conditions)>2
             warning('condMatrix:setup', '[condMatrix.randMode]==3 incompatible with >2 dimensions')
         end
-        
-% % %         % --- Do we need copies of core/static pldaps variables w/in this class?
-% % %         cm.ptr       = p.trial.display.ptr;
-% % %         
-% % %   These don't exist at time of condMatrix initialization.
-% % %   ...consider adding a postOpenScreen routine to p.run to update condMatrix,
-% % %   but seems like a crufty solution.
-% % %   Better off letting condMatrix do one thing well, than all-the-things cryptically
-% % % 
-% % %         % size of the display (physical measurement & pixel count...not visual degrees)
-% % %         cm.wWidth    = p.trial.display.wWidth;
-% % %         cm.wHeight   = p.trial.display.wHeight;
-% % %         cm.pWidth    = p.trial.display.pWidth;
-% % %         cm.pHeight   = p.trial.display.pHeight;
-% % %         
-% % %         % variables for converting units
-% % %         cm.ctr       = p.trial.display.ctr(1:2); % ...ctr should be a point (not a rect) in the first place
-% % %         cm.frate     = p.trial.display.frate;
-% % %         cm.ifi       = p.trial.display.ifi;
-% % %         
-    
+            
     end
     
     
@@ -390,8 +385,8 @@ methods
     function output = putBack(cm, p, unusedConds)
         if nargin<3
             unusedConds = [];
-            for i = 1:length(p.trial.pldaps.modNames.matrixModule)
-                mN = p.trial.pldaps.modNames.matrixModule{i};
+            for i = 1:length(cm.modNames.matrixModule)
+                mN = cm.modNames.matrixModule{i};
                 theseConds(i) = p.trial.(mN).condIndex;
                 wasShown(i) = p.trial.(mN).shown;
                 %                 if ~p.trial.(mN).shown
@@ -565,7 +560,7 @@ methods
                     promptStr = '';
                 end
                 cm.H.userPromptAx.Children(end).String = promptStr;
-                axis(cm.H.userPromptAx, 'tight');
+                % axis(cm.H.userPromptAx, 'tight'); % shouldn't have to do this every time
             end
                 
                 
@@ -574,9 +569,15 @@ methods
         else
             % Info figure
             figBgCol = 0.5*[1 1 1]';
+            % figure position
+            figPos = [.8,.02,.18,.2];  % == [left, bottom, width, height]
+            % if multiple condMatrix objects exist, shift position by .baseIndex
+            figPos(2) = figPos(2)+(cm.baseIndex-1000)/1000*figPos(4);
+            
             Hf = figure(cm.baseIndex); clf;
-            set(Hf, 'windowstyle','normal', 'toolbar','none', 'menubar','none', 'selectionHighlight','off', 'color',figBgCol, 'units','normalized');%'position',[1000,100,400,300])
-            set(Hf, 'Name', p.trial.session.file, 'NumberTitle','off', 'position', [.8,.02,.18,.2]);
+            set(Hf, 'windowstyle','normal', 'toolbar','none', 'menubar','none', 'selectionHighlight','off', 'color',figBgCol, 'units','normalized');
+            
+            set(Hf, 'Name', p.trial.session.file, 'NumberTitle','off', 'position', figPos);
             % only need handle to parent figure to access all contents
             cm.H.infoFig = Hf;
             
@@ -616,6 +617,7 @@ methods
             %   that you wouldn't otherwise want presented on screen or stacking up in command window
             ht = text(hp, 0, 0.8, cm.H.userPromptStr);
             set(ht, 'fontweight','bold');
+            axis(hp,'tight');
             % include ax handle in obj
             cm.H.userPromptAx = hp;
 
