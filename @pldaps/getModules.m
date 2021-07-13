@@ -1,4 +1,4 @@
-function [moduleNames, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs] = getModules(p, moduleType)
+function [moduleNames, moduleFunctionHandles, moduleRequestedStates] = getModules(p, moduleType)
 % function [moduleNames, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs] = getModules(p, [moduleType])
 % 
 % Parse current module activity state, execution order, and trialStates during which they should be active.
@@ -40,10 +40,11 @@ function [moduleNames, moduleFunctionHandles, moduleRequestedStates, moduleLocat
 % 2017-10-xx  tbc Added flag for module active state
 % 2018-06-26  tbc Expanded with binary flag moduleType, for more control over module sub-selection & .condMatrix
 % 2019-07-23  tbc Updated subselection options
+% 2021-07-09  tbc Excised "moduleLocationInputs"...**all** PLDAPS modules must accept standard 3 inputs:  (p, state, sn)
 % 
 
 % Parse inputs & Initialize
-[moduleNames, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs] = deal([]);
+[moduleNames, moduleFunctionHandles, moduleRequestedStates] = deal([]);
 doFieldCheck = 0;
 
 if nargin<2 || isempty(moduleType)
@@ -53,7 +54,6 @@ end
 
 %% Find all modules in p.trial struct
 moduleNames=fieldnames(p.trial);
-moduleNames(cellfun(@(x) ~isstruct(p.trial.(x)),moduleNames))=[]; %remove non struct candidates
 
 % Shortcircuit special cases (allow detection of core PLDAPS fields, like .mouse or .eyelink)
 % --- return only 'active' module marked for use as eye position:  p.trial.(sn).use == true & p.trial.(sn).useAsEyepos == true;
@@ -61,9 +61,14 @@ if iscell(moduleType)
     % check for presence & value of a specified subfield
     for i = 1:size(moduleType,1)
         thisField = moduleType{i,1};
+        % "isfield" call will inherently exclude all non-structs
         moduleNames(cellfun(@(x) ~isfield(p.trial.(x), thisField), moduleNames)) = []; % check for presence
         if size(moduleType,2)>1
             thisVal = moduleType{i,2};
+            if ischar(thisVal)
+                % use string for comparison to avoid comparison of each char in string
+                thisVal = string(thisVal);
+            end
             moduleNames = moduleNames(cellfun(@(x) p.trial.(x).(thisField) == thisVal, moduleNames)); % matching value
         end
     end
@@ -74,78 +79,99 @@ elseif bitget(moduleType, 3)
     return
 end
 
-% Restrict to genuine modules (with executable .stateFunctions)
-moduleNames(cellfun(@(x) ~isfield(p.trial.(x),'stateFunction'),moduleNames))=[]; %remove candidates without a stateFucntion specified
+% Characteristics of a PLDAPS module, a field of [p.trial] must
+% - be a struct itself
+% - contain a [.stateFunction] field 
+%   - the ".stateFunction" is [a poorly named/antequated] struct field containing PLDAPS module internals
+%   - when the helper function pldapsModule() is used for module creation,
+%     most users will never need to see/touch/understand .stateFunction internals
+moduleNames(cellfun(@(x) (~isfield(p.trial.(x),'stateFunction')), moduleNames))=[];
+
+% Break free from a zillion calls to the input PLDAPS object [p] by extracting
+% the ".stateFunction" struct from all candidate modules
+% - slow overhead from excessive [p.] calls due to inefficiencies in PLDAPS "params" hierarchy class
+SF = cell2mat(cellfun(@(x) p.trial.(x).stateFunction, moduleNames, 'uni',0));
+% Now "arrayfun(...,SF)" replaces old calls to "cellfun(...p.trial.(s).stateFunction, moduleNames...)"
 
 % Subselect modules based on moduleType
 % --- return only 'matrixModules'
 if bitget(moduleType, 2)
-    moduleNames(cellfun(@(x) (~isfield(p.trial.(x).stateFunction,'matrixModule') || ~p.trial.(x).stateFunction.matrixModule ),moduleNames)) = [];
+    drop = arrayfun(@(x) (~isfield(x,'matrixModule') || ~x.matrixModule), SF);
+    SF(drop) = [];
+    moduleNames(drop) = [];
 end
 
 % --- return only 'active' modules:  p.trial.(sn).use == true;
 if bitget(moduleType, 1)
-    moduleNames(cellfun(@(x) (~isfield(p.trial.(x),'use') || ~p.trial.(x).use ),moduleNames)) = [];
+    drop = cellfun(@(x) (~isfield(p.trial.(x),'use') || ~p.trial.(x).use), moduleNames);
+    SF(drop) = [];
+    moduleNames(drop) = [];
 end
 
 
 %% Sort module execution by requested .stateFunction.order:
-%      -Inf to 0 Default to Inf, (...Nan even after Inf, but don't do that)
-% If no order specified, defaults to Inf.
+% - module code will be executed in order from -Inf:Inf (...Nan even after Inf, but don't do that)
+% - If no .order specified, defaults to Inf.
 moduleOrder = inf(size(moduleNames));
 % if .order defined, retrieve it
-hasOrder = cellfun(@(x) isfield(p.trial.(x).stateFunction,'order'), moduleNames);
-moduleOrder(hasOrder) = cellfun(@(x) p.trial.(x).stateFunction.order, moduleNames(hasOrder));
-[moduleOrder,so]=sort(moduleOrder);
-moduleNames=moduleNames(so);
+hasOrder = arrayfun(@(x) isfield(x,'order'), SF);
+
+moduleOrder(hasOrder) = arrayfun(@(x) x.order, SF(hasOrder));
+[moduleOrder, so] = sort(moduleOrder);
+SF = SF(so);
+moduleNames = moduleNames(so);
 
 
-%% "acceptsLocationInput"
-% Means the function accepts a 3rd [string] input specifying the p.trial structure fieldname
-% where the relevant data & parameters are located.
-%    e.g.  moduleFxnAbreviation = n = 'dots'; that locationInput[n] directs stateFunctions to look in  p.trial.(n).<whatever>
-%
-%   (...this should always be used. May only be here for backwards compatibility, but it
-%       makes module creation more tedious/essoteric; consider removing. --TBC 2017-10)
-moduleLocationInputs=cellfun(@(x)...
-    (isfield(p.trial.(x).stateFunction,'modName') && ~isempty(p.trial.(x).stateFunction.modName))...
-    || (isfield(p.trial.(x).stateFunction,'acceptsLocationInput') && p.trial.(x).stateFunction.acceptsLocationInput),...
-    moduleNames);
+if nargout>1
+    % Outside of PLDAPS under-the-hood calls, the rest of this is superfluous
+    % (...& full of super slow/klunky Legacy code)
+    %
+        
+    %% Handles to module code
+    % - because normal "@" function handles can't exist in PLDAPS params hierarchy, this string to function conversion is a workaround
+    moduleFunctionHandles=arrayfun(@(x) str2func(x.name), SF, 'UniformOutput', false);
+    
+    
+    %% Limit module execution to certain trialStates
+    % Cross reference all trial states in use, with those specifically requested by the module
+    % If none specified, make module active for all states.
+    availableStates = fieldnames(p.trial.pldaps.trialStates);
+    %a little too long, ok, so if requestedStates is not defined, or .all
+    %is true, we will call it for all states. Otherwise it will only call
+    %the ones defined and true. --jk 2016(?)
+    %
 
-moduleFunctionHandles=cellfun(@(x) str2func(p.trial.(x).stateFunction.name), moduleNames, 'UniformOutput', false);
-
-
-%% Limit module execution to certain trialStates
-% Cross reference all trial states in use, with those specifically requested by the module
-% If none specified, make module active for all states.
-availiableStates=fieldnames(p.trial.pldaps.trialStates);
-%a little too long, ok, so if requestedStates is not defined, or .all
-%is true, we will call it for all states. Otherwise it will only call
-%the ones defined and true. --jk 2016(?)
-moduleRequestedStates = cellfun(@(x)...
-                                (cellfun(@(y)...
-                                            (~isfield(p.trial.(y).stateFunction,'requestedStates')...
-                                            || strcmpi(p.trial.(y).stateFunction.requestedStates, 'all')...
-                                            || (isfield(p.trial.(y).stateFunction.requestedStates,'all'))... && p.trial.(y).stateFunction.requestedStates.all)...
-                                            || (isfield(p.trial.(y).stateFunction.requestedStates,x) && p.trial.(y).stateFunction.requestedStates.(x))),... % end @(y) customFxn
-                                moduleNames)),... % end @(x) customFxn
-                        availiableStates, 'UniformOutput', false);
-
-% not totally clear what this special case is...backwards compatibility?
-if isfield(p.trial.pldaps,'trialFunction') && ~isempty(p.trial.pldaps.trialFunction)
-    moduleNames{end+1}='stimulus';
-    moduleFunctionHandles{end+1}=str2func(p.trial.pldaps.trialFunction);
-    for iState=1:length(moduleRequestedStates)
-        moduleRequestedStates{iState}(end+1)=true;
+    % Excised mmmany repetitive PLDAPS object usage w/in this crazy call
+    requestedStates = cellfun(@(x)...
+        (arrayfun(@(y)...
+        (~isfield(y,'requestedStates') || strcmpi(y.requestedStates, 'all')...
+        || isfield(y.requestedStates,'all')...
+        || (isfield(y.requestedStates, x) && y.requestedStates.(x))),... % end @(y) customFxn
+        SF)),... % end @(x) customFxn
+        availableStates, 'UniformOutput', false);
+    
+    % -----------------------------------------------------------------------
+    % not totally clear what this special case is...backwards compatibility?
+    if isfield(p.trial.pldaps,'trialFunction') && ~isempty(p.trial.pldaps.trialFunction)
+        keyboard
+        % ****************************************************************
+        % Encountering this is sign of VERY OUTDATED CODE that should be 
+        % retired or updated...bypass this roadblock at your own risk.
+        % ****************************************************************
+        moduleNames{end+1}='stimulus';
+        moduleFunctionHandles{end+1}=str2func(p.trial.pldaps.trialFunction);
+        for iState=1:length(requestedStates)
+            requestedStates{iState}(end+1)=true;
+        end
+        moduleOrder(end+1)=NaN; %#ok<NASGU>
     end
-    moduleOrder(end+1)=NaN; %#ok<NASGU>
-    moduleLocationInputs(end+1)=false;
-end
-
-% Format requested states to a struct of each available trialState, with logical flags for each module
-% No, logical flags force use of a "find" call every time a module is called on every state (mmany times per frame!!)
-% ...instead, do the find just once here
-moduleRequestedStates=cellfun(@(x) find(x), moduleRequestedStates, 'UniformOutput', false);
+    % -----------------------------------------------------------------------
+    
+    
+    % Format requested states to a struct of each available trialState, with logical flags for each module
+    % No, logical flags force use of a "find" call every time a module is called on every state (mmany times per frame!!)
+    % ...instead, do the find just once here
+    requestedStates=cellfun(@(x) find(x), requestedStates, 'UniformOutput', false);
     % NOTE: Something very strange happens here...
     %   Somewhere in the mergeToSingleStruct method of Params class,
     %   1-by-n fields get flipped into n-by-1 (and vice versa!@)
@@ -153,11 +179,13 @@ moduleRequestedStates=cellfun(@(x) find(x), moduleRequestedStates, 'UniformOutpu
     %   depending on whether its outside or inside the trialMasterFunction  (i.e. experimentPostOpenScreen vs. trialSetup)
     %   ...a proper fix to mergeToSingleStruct should be determined --TBC Oct. 2017
     %
-    % The following line normalizes output, but does not fix the source.=
+    % The following line normalizes output, but does not address the cause.
     %   (...only trial & error to find out why this line was here in first place...--TBC)
-    moduleRequestedStates=cellfun(@(x) reshape(x,1,numel(x)), moduleRequestedStates, 'UniformOutput', false);
+    requestedStates=cellfun(@(x) reshape(x,1,numel(x)), requestedStates, 'UniformOutput', false);
+    
+    % assign module indices to struct of availableStates
+    moduleRequestedStates=cell2struct(requestedStates,availableStates);
 
-moduleRequestedStates=cell2struct(moduleRequestedStates,availiableStates);
+end
 
-
-end % end of function
+end %main function

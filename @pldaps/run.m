@@ -56,8 +56,8 @@ if p.trial.pldaps.useModularStateFunctions
     
     % experimentPreOpenScreen: experiment/module setup prior to opening PTB screen
     % - use for establishing default module parameters (see modularDemo.pmFixDot.m for example)
-    [moduleNames, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs] = getModules(p);
-    runStateforModules(p,'experimentPreOpenScreen', moduleNames, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    [moduleNames, moduleFunctionHandles, moduleRequestedStates] = getModules(p);
+    runStateforModules(p,'experimentPreOpenScreen', moduleNames, moduleFunctionHandles, moduleRequestedStates);
 end
 
 
@@ -138,8 +138,8 @@ if p.trial.pldaps.useModularStateFunctions
     % ???: Should this be done BEFORE or AFTER experimentPostOpenScreen state execution?
     %      ...BOTH is ugly, but logical/safe given potential setup dependencies
 
-    [moduleNames,moduleFunctionHandles,moduleRequestedStates,moduleLocationInputs] = getModules(p);
-    runStateforModules(p,'experimentPostOpenScreen',moduleNames,moduleFunctionHandles,moduleRequestedStates,moduleLocationInputs);
+    [moduleNames,moduleFunctionHandles,moduleRequestedStates] = getModules(p);
+    runStateforModules(p,'experimentPostOpenScreen',moduleNames,moduleFunctionHandles,moduleRequestedStates);
     
     p.updateModNames;
 end
@@ -342,11 +342,11 @@ while p.trial.pldaps.iTrial < p.trial.pldaps.finish && p.trial.pldaps.quit~=2
             warning('pldaps:run:experimentAfterTrials', ['Use of pldaps state [.experimentAfterTrials] is deprecated & will transition to error soon.\n', ...
                  '\t\t (....unless someone provides compelling objection [circa Dec 2020])']);
              oldptrial=p.trial;
-            [moduleNames,moduleFunctionHandles,moduleRequestedStates,moduleLocationInputs] = getModules(p);
+            [moduleNames,moduleFunctionHandles,moduleRequestedStates] = getModules(p);
             p.defaultParameters.setLevels(p.static.pldaps.baseParamsLevels);
             p.trial=mergeToSingleStruct(p.defaultParameters);
             p.defaultParameters.setLock(true);
-            runStateforModules(p,'experimentAfterTrials',moduleNames,moduleFunctionHandles,moduleRequestedStates,moduleLocationInputs);
+            runStateforModules(p,'experimentAfterTrials',moduleNames,moduleFunctionHandles,moduleRequestedStates);
             
             p.defaultParameters.setLock(false);
             betweenTrialsStruct=getDifferenceFromStruct(p.defaultParameters,p.trial);
@@ -435,8 +435,8 @@ if p.trial.sound.use
 end
 
 if p.trial.pldaps.useModularStateFunctions
-    [moduleNames,moduleFunctionHandles,moduleRequestedStates,moduleLocationInputs] = getModules(p);
-    runStateforModules(p,'experimentCleanUp',moduleNames,moduleFunctionHandles,moduleRequestedStates,moduleLocationInputs);
+    [moduleNames,moduleFunctionHandles,moduleRequestedStates] = getModules(p);
+    runStateforModules(p,'experimentCleanUp',moduleNames,moduleFunctionHandles,moduleRequestedStates);
 end
 
 %% Send expt end sync RSTOP

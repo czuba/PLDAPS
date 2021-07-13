@@ -1,4 +1,4 @@
-function runStateforModules(p, state, modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs)
+function runStateforModules(p, state, modules, moduleFunctionHandles, moduleRequestedStates)
 
 %using cellfun might be slower than a for loop and does not guarantee
 %execution in order of the arrays, so for loop seems like proper solution here. Ideally it would be

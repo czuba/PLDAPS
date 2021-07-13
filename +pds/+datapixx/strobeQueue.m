@@ -31,3 +31,5 @@ for i = 1:numel(strobeVals)
     WaitSecs('UntilTime', t0 + 1e-7);  % omniplex safe
     % WaitSecs('UntilTime', t0+1.5e-5);  % MAP safe (...system retired 2020)
 end
+
+end %main function

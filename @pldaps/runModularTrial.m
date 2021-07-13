@@ -12,7 +12,7 @@ function p = runModularTrial(p)
 
 
     %get all functionHandles that we want to use
-    [modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs] = getModules(p);
+    [modules, moduleFunctionHandles, moduleRequestedStates] = getModules(p);
 
     %order the framestates that we will iterate through each trial by their value
     % only positive states are frame states. And they will be called in
@@ -24,11 +24,11 @@ function p = runModularTrial(p)
     nStates=length(stateValue);
 
     %% trialSetup
-    runStateforModules(p, 'trialSetup', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialSetup', modules, moduleFunctionHandles, moduleRequestedStates);
 
     %% trialPrepare
     %   called just before the trial starts for time critical calls  (e.g. to start data aquisition)
-    runStateforModules(p, 'trialPrepare', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialPrepare', modules, moduleFunctionHandles, moduleRequestedStates);
 
     % %     % sync to screen refresh just before start of frame-dependent states
     % %     Screen('WaitBlanking', p.trial.display.ptr);
@@ -50,7 +50,7 @@ function p = runModularTrial(p)
         %% PLDAPS frame states
         % iterate through [.frameUpdate, .framePrepareDrawing, .frameDraw, ...etc]
         for iState=1:nStates
-            runStateforModules(p, stateName{iState}, modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+            runStateforModules(p, stateName{iState}, modules, moduleFunctionHandles, moduleRequestedStates);
             % update trial time
             p.trial.ttime = GetSecs - p.trial.trstart;
 
@@ -67,13 +67,13 @@ function p = runModularTrial(p)
     %% trialItiDraw
     %  ** Inherently not a time-critical operation, so no call to setTimeAndFrameState necessary
     %   ...also, setTimeAndFrameState uses current state as an index, so using with this would break
-    runStateforModules(p, 'trialItiDraw', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialItiDraw', modules, moduleFunctionHandles, moduleRequestedStates);
 
     if round(Priority)<MaxPriority('GetSecs')
         warning('pldaps:runTrial', 'Thread priority was degraded by operating system during the trial.')
     end
 
     %% trialCleanUpandSave
-    runStateforModules(p, 'trialCleanUpandSave', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialCleanUpandSave', modules, moduleFunctionHandles, moduleRequestedStates);
 
 end %runModularTrial

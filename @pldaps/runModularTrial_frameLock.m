@@ -23,7 +23,7 @@ function p = runModularTrial_frameLock(p)
     end
     
     %get all functionHandles that we want to use
-    [modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs] = getModules(p);
+    [modules, moduleFunctionHandles, moduleRequestedStates] = getModules(p);
 
     %order the framestates that we will iterate through each trial by their value
     % only positive states are frame states. And they will be called in
@@ -35,12 +35,12 @@ function p = runModularTrial_frameLock(p)
     nStates=length(stateValue);
 
     %% trialSetup
-    runStateforModules(p, 'trialSetup', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialSetup', modules, moduleFunctionHandles, moduleRequestedStates);
 
     %% trialPrepare
     %   called just before the trial starts for time critical calls
     %   (e.g. to start data aquisition)
-    runStateforModules(p, 'trialPrepare', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialPrepare', modules, moduleFunctionHandles, moduleRequestedStates);
 
     %%% MAIN WHILE LOOP %%%
     %-------------------------------------------------------------------------%
@@ -58,7 +58,7 @@ function p = runModularTrial_frameLock(p)
         %% PLDAPS frame states
         % iterate through [.frameUpdate, .framePrepareDrawing, .frameDraw, ...etc]
         for iState=1:nStates
-            runStateforModules(p, stateName{iState}, modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+            runStateforModules(p, stateName{iState}, modules, moduleFunctionHandles, moduleRequestedStates);
 
             %% FUDGE the trial time as if only one frame has elapsed regardless of how much
             % processing/pause time has elapsed
@@ -78,13 +78,13 @@ function p = runModularTrial_frameLock(p)
     %% trialItiDraw
     %  ** Inherently not a time-critical operation, so no call to setTimeAndFrameState necessary
     %   ...also, setTimeAndFrameState uses current state as an index, so using with this would break
-    runStateforModules(p, 'trialItiDraw', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialItiDraw', modules, moduleFunctionHandles, moduleRequestedStates);
 
     if round(Priority)<MaxPriority('GetSecs')
         warning('pldaps:runTrial', 'Thread priority was degraded by operating system during the trial.')
     end
 
     %% trialCleanUpandSave
-    runStateforModules(p, 'trialCleanUpandSave', modules, moduleFunctionHandles, moduleRequestedStates, moduleLocationInputs);
+    runStateforModules(p, 'trialCleanUpandSave', modules, moduleFunctionHandles, moduleRequestedStates);
 
 end %runModularTrial
