@@ -256,7 +256,12 @@ methods
         if isscalar(cm.randMode) && cm.randMode==3 && ndims(cm.conditions)>2
             warning('condMatrix:setup', '[condMatrix.randMode]==3 incompatible with >2 dimensions')
         end
-            
+        
+        % close infoFig from prior sessions/runs
+        if ishandle(cm.baseIndex)
+            close(cm.baseIndex);
+        end
+        
     end
     
     
@@ -572,7 +577,7 @@ methods
             % figure position
             figPos = [.8,.02,.18,.2];  % == [left, bottom, width, height]
             % if multiple condMatrix objects exist, shift position by .baseIndex
-            figPos(2) = figPos(2)+(cm.baseIndex-1000)/1000*figPos(4);
+            figPos(2) = figPos(2)+(cm.baseIndex-1000)/1000*(figPos(4)+figPos(2));
             
             Hf = figure(cm.baseIndex); clf;
             set(Hf, 'windowstyle','normal', 'toolbar','none', 'menubar','none', 'selectionHighlight','off', 'color',figBgCol, 'units','normalized');
